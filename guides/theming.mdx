@@ -1,0 +1,381 @@
+---
+title: Theming
+description: Implement theming with CSS variables, data-theme attributes, and theme helpers
+---
+
+## Overview
+
+styled-static uses a CSS-first approach to theming:
+
+- **CSS Variables**: Define theme tokens in `:root` and `[data-theme]` selectors
+- **data-theme attribute**: Control which theme is active
+- **Theme Helpers**: Utilities for theme initialization and switching
+
+All theming happens with zero runtime overhead.
+
+## Basic Theme Setup
+
+Define themes using CSS variables and the `data-theme` attribute:
+
+```tsx
+import { createGlobalStyle, styled } from '@alex.radulescu/styled-static';
+
+const GlobalStyle = createGlobalStyle`
+  :root, [data-theme="light"] {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --primary: #3b82f6;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0a0a0a;
+    --text: #f1f5f9;
+    --primary: #60a5fa;
+  }
+`;
+
+const Card = styled.div`
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--primary);
+`;
+```
+
+## Multiple Themes
+
+You can define as many themes as you want:
+
+```tsx
+const GlobalStyle = createGlobalStyle`
+  :root, [data-theme="light"] {
+    --bg: #fff;
+    --text: #1a1a1a;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0a0a0a;
+    --text: #f1f5f9;
+  }
+
+  [data-theme="pokemon"] {
+    --bg: #ffcb05;
+    --text: #2a75bb;
+  }
+
+  [data-theme="star-trek"] {
+    --bg: #000000;
+    --text: #00d4ff;
+  }
+`;
+```
+
+<Note>
+The `:root` selector provides fallback values when no `data-theme` is set.
+</Note>
+
+## Theme Helpers
+
+styled-static provides runtime utilities for theme management:
+
+### initTheme
+
+Initialize the theme system on page load:
+
+```tsx
+import { initTheme } from '@alex.radulescu/styled-static';
+
+// In your app entry point
+initTheme({ defaultTheme: 'light', useSystemPreference: true });
+```
+
+**Priority order:**
+1. Stored theme from localStorage
+2. System preference (if `useSystemPreference` is true)
+3. Default theme
+
+### setTheme
+
+Change the active theme:
+
+```tsx
+import { setTheme } from '@alex.radulescu/styled-static';
+
+// Set theme and persist to localStorage
+setTheme('dark');
+
+// Set theme without persisting (e.g., for preview)
+setTheme('pokemon', false);
+```
+
+### getTheme
+
+Read the current theme:
+
+```tsx
+import { getTheme } from '@alex.radulescu/styled-static';
+
+const current = getTheme();
+console.log(current); // 'light' | 'dark' | etc.
+```
+
+### onSystemThemeChange
+
+Subscribe to OS theme changes:
+
+```tsx
+import { onSystemThemeChange, setTheme } from '@alex.radulescu/styled-static';
+
+const unsubscribe = onSystemThemeChange((prefersDark) => {
+  // Only auto-switch if user hasn't set a preference
+  if (!localStorage.getItem('theme')) {
+    setTheme(prefersDark ? 'dark' : 'light', false);
+  }
+});
+
+// Later: stop listening
+unsubscribe();
+```
+
+## Complete Example
+
+Here's how the styled-static documentation implements theming:
+
+```tsx
+import { useState, useEffect } from 'react';
+import {
+  createGlobalStyle,
+  styled,
+  initTheme,
+  setTheme,
+  getTheme,
+  onSystemThemeChange,
+} from '@alex.radulescu/styled-static';
+
+const GlobalStyle = createGlobalStyle`
+  :root {
+    --color-bg: #ffffff;
+    --color-text: #0f172a;
+    --color-primary: #10b981;
+  }
+
+  [data-theme="dark"] {
+    --color-bg: #0a0a0a;
+    --color-text: #f1f5f9;
+    --color-primary: #10b981;
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+`;
+
+const ThemeToggle = styled.button`
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--color-text);
+
+  &:hover {
+    background: var(--color-border);
+  }
+`;
+
+function App() {
+  const [theme, setThemeState] = useState(() => {
+    // Initialize theme from localStorage or system preference
+    return initTheme({ useSystemPreference: true });
+  });
+
+  const toggleTheme = () => {
+    const current = getTheme();
+    const next = current === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    setThemeState(next);
+  };
+
+  // Subscribe to system theme changes
+  useEffect(() => {
+    return onSystemThemeChange((prefersDark) => {
+      if (!localStorage.getItem('theme')) {
+        const next = prefersDark ? 'dark' : 'light';
+        setTheme(next, false);
+        setThemeState(next);
+      }
+    });
+  }, []);
+
+  return (
+    <>
+      <GlobalStyle />
+      <ThemeToggle onClick={toggleTheme}>
+        {theme === 'light' ? '🌙' : '☀️'}
+      </ThemeToggle>
+    </>
+  );
+}
+```
+
+## Theme Configuration Options
+
+The `initTheme` function accepts several options:
+
+```tsx
+initTheme({
+  // Default theme when no preference exists
+  defaultTheme: 'light',
+
+  // localStorage key for persisting theme
+  storageKey: 'theme',
+
+  // Use system color scheme as fallback
+  useSystemPreference: true,
+
+  // Custom attribute name (default: 'data-theme')
+  attribute: 'data-theme',
+});
+```
+
+<Tabs>
+  <Tab title="defaultTheme">
+    The theme to use when no stored preference exists and `useSystemPreference` is false.
+    ```tsx
+    initTheme({ defaultTheme: 'dark' });
+    ```
+  </Tab>
+  <Tab title="storageKey">
+    The localStorage key for persisting the theme.
+    ```tsx
+    initTheme({ storageKey: 'my-app-theme' });
+    ```
+  </Tab>
+  <Tab title="useSystemPreference">
+    Whether to check `prefers-color-scheme: dark` media query.
+    ```tsx
+    initTheme({ useSystemPreference: true });
+    ```
+  </Tab>
+  <Tab title="attribute">
+    Custom attribute name (useful for libraries with existing conventions).
+    ```tsx
+    initTheme({ attribute: 'data-color-mode' });
+    ```
+  </Tab>
+</Tabs>
+
+## Custom Attributes
+
+You can use custom attribute names instead of `data-theme`:
+
+```tsx
+const GlobalStyle = createGlobalStyle`
+  [data-color-mode="light"] {
+    --bg: white;
+    --text: black;
+  }
+
+  [data-color-mode="dark"] {
+    --bg: black;
+    --text: white;
+  }
+`;
+
+initTheme({
+  attribute: 'data-color-mode',
+  defaultTheme: 'light',
+});
+
+setTheme('dark', true, { attribute: 'data-color-mode' });
+```
+
+## Theme Persistence
+
+By default, `setTheme` persists to localStorage:
+
+```tsx
+// Persist to localStorage (default)
+setTheme('dark'); // saved to localStorage.theme
+
+// Don't persist (temporary preview)
+setTheme('pokemon', false);
+
+// Custom storage key
+setTheme('dark', true, { storageKey: 'my-app-theme' });
+```
+
+## Component-Level Theming
+
+You can scope themes to specific components:
+
+```tsx
+const ThemedSection = styled.section`
+  /* Use parent theme by default */
+  background: var(--bg);
+  color: var(--text);
+
+  /* Override for this section */
+  [data-theme="special"] & {
+    --bg: #ff0;
+    --text: #000;
+  }
+`;
+
+// Usage
+<div data-theme="special">
+  <ThemedSection>
+    This section has special theme overrides
+  </ThemedSection>
+</div>
+```
+
+## Performance
+
+Theming with styled-static has zero runtime overhead:
+
+<Steps>
+
+<Step title="Build Time">
+CSS variables are defined in static CSS files. No runtime generation.
+</Step>
+
+<Step title="Theme Switching">
+Changing themes only sets a single attribute on `documentElement`. CSS variables cascade automatically.
+</Step>
+
+<Step title="No Re-renders">
+Theme changes don't trigger React re-renders. The browser handles CSS variable updates natively.
+</Step>
+
+</Steps>
+
+<Note>
+Unlike context-based theming, CSS variables don't require React re-renders or prop drilling.
+</Note>
+
+## API Reference
+
+| Function | Description |
+| --- | --- |
+| `initTheme(options?)` | Initialize theme on load. Priority: localStorage → system → default |
+| `setTheme(theme, persist?)` | Set theme. Persists to localStorage by default |
+| `getTheme(attribute?)` | Get current theme from attribute (default: `data-theme`) |
+| `onSystemThemeChange(callback)` | Subscribe to OS theme changes. Returns unsubscribe function |
+
+## Browser Support
+
+CSS Variables are supported in all modern browsers:
+
+- Chrome 49+
+- Safari 9.1+
+- Firefox 31+
+- Edge 15+
+
+The `prefers-color-scheme` media query is supported in:
+
+- Chrome 76+
+- Safari 12.1+
+- Firefox 67+
+- Edge 79+

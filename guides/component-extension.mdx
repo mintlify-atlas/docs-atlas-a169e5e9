@@ -1,0 +1,232 @@
+---
+title: Component Extension
+description: Extend existing styled components with additional styles using styled(Component)
+---
+
+## Overview
+
+You can extend existing styled components by passing them to `styled()`. This allows you to build component hierarchies and reuse styles across your application.
+
+## Basic Extension
+
+Extend a styled component with additional styles:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+// Base button
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+`;
+
+// Extend with additional styles
+const PrimaryButton = styled(Button)`
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+`;
+
+const DangerButton = styled(Button)`
+  background: #ef4444;
+  color: white;
+`;
+```
+
+## Chaining Extensions
+
+You can chain multiple extensions to build complex component hierarchies:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+`;
+
+const PrimaryButton = styled(Button)`
+  background: #3b82f6;
+  color: white;
+`;
+
+const LargePrimaryButton = styled(PrimaryButton)`
+  padding: 1rem 2rem;
+  font-size: 1.25rem;
+`;
+```
+
+## CSS Cascade Order
+
+When components are extended, classes are ordered correctly to ensure proper cascade:
+
+<Steps>
+
+<Step title="Base styles first">
+The original component's styles are applied first.
+</Step>
+
+<Step title="Extension styles second">
+The extending component's styles override the base.
+</Step>
+
+<Step title="User className last">
+User-provided className overrides all styled classes.
+</Step>
+
+</Steps>
+
+```tsx
+const Button = styled.button`
+  background: gray;
+  padding: 0.5rem 1rem;
+`;
+
+const Primary = styled(Button)`
+  background: blue; /* Overrides gray */
+`;
+
+const Large = styled(Primary)`
+  padding: 1rem 2rem; /* Overrides 0.5rem 1rem */
+`;
+
+<Large className="custom" />
+// Renders: class="ss-base ss-primary ss-large custom"
+// Cascade order: base → primary → large → custom
+```
+
+<Note>
+The className order ensures that extensions always override base styles, and user classes always win.
+</Note>
+
+## Extending Custom Components
+
+You can also extend any React component that accepts a `className` prop:
+
+```tsx
+import { Link } from 'react-router-dom';
+import { styled } from '@alex.radulescu/styled-static';
+
+// Extend a third-party component
+const StyledLink = styled(Link)`
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+<StyledLink to="/home">Go Home</StyledLink>
+```
+
+<Warning>
+The component being extended must accept a `className` prop. Most React components do, but if not, you'll need to wrap it first.
+</Warning>
+
+## Type Safety
+
+Extended components preserve the props of the base component:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+`;
+
+const PrimaryButton = styled(Button)`
+  background: blue;
+`;
+
+// ✅ Type-safe: button props are still available
+<PrimaryButton type="submit" disabled>
+  Submit
+</PrimaryButton>
+
+const StyledLink = styled(Link)`
+  color: blue;
+`;
+
+// ✅ Type-safe: Link props (to, replace, etc.) are available
+<StyledLink to="/home" replace>
+  Home
+</StyledLink>
+```
+
+## Real-World Example
+
+Here's how the styled-static documentation uses component extension:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+// Base button with common styles
+const StyledButton = styled.button`
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-primary-hover);
+  }
+`;
+
+// Extended button with uppercase styling
+const ExtendedButton = styled(StyledButton)`
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+// Usage
+<StyledButton>Normal Button</StyledButton>
+<ExtendedButton>Loud Button</ExtendedButton>
+```
+
+## Build-Time Transformation
+
+When you extend a component, styled-static combines the class names at build time:
+
+```tsx
+// What you write:
+const Base = styled.button`background: gray;`;
+const Extended = styled(Base)`color: white;`;
+
+// What gets generated:
+const Extended = Object.assign(
+  (p) => createElement(Base, {
+    ...p,
+    className: m('ss-xyz789', p.className)
+  }),
+  { className: Base.className + ' ss-xyz789' }
+);
+```
+
+The `.className` property combines all parent class names:
+
+```tsx
+const A = styled.div`padding: 1rem;`;
+const B = styled(A)`margin: 1rem;`;
+const C = styled(B)`border: 1px solid;`;
+
+console.log(C.className);
+// "ss-a ss-b ss-c"
+```
+
+## Performance
+
+Component extension has zero runtime overhead:
+
+- Class name concatenation happens at build time
+- No component tree traversal needed
+- CSS is extracted to static files
+- Minimal runtime (~45B) only merges user className
+
+<Note>
+Unlike runtime CSS-in-JS libraries, extending components doesn't create wrapper components or affect the React tree depth.
+</Note>

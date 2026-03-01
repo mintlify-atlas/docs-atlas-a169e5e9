@@ -1,0 +1,94 @@
+---
+title: getTheme
+description: Get the current active theme from the document
+---
+
+## Usage
+
+Retrieve the current theme value from the document element.
+
+```tsx
+import { getTheme } from '@alex.radulescu/styled-static';
+
+const current = getTheme(); // 'light', 'dark', 'pokemon', etc.
+```
+
+## Signature
+
+```tsx
+function getTheme(attribute?: string): string
+```
+
+## Parameters
+
+<ParamField path="attribute" type="string" default="'data-theme'">
+  The attribute to read from documentElement. Supports both `data-*` attributes (using dataset) and regular attributes
+</ParamField>
+
+## Returns
+
+<ResponseField name="theme" type="string">
+  The current theme name, or `'light'` if not set
+</ResponseField>
+
+## Behavior
+
+The function:
+
+1. Reads the specified attribute from `document.documentElement`
+2. Handles both `data-*` attributes (via dataset) and regular attributes
+3. Returns `'light'` as the default if the attribute is not set
+4. Returns `'light'` in server-side rendering environments where `document` is undefined
+
+## Examples
+
+### Basic usage
+
+```tsx
+import { getTheme } from '@alex.radulescu/styled-static';
+
+const theme = getTheme(); // 'light', 'dark', 'pokemon', etc.
+```
+
+### Using with React state
+
+```tsx
+import { useState, useEffect } from 'react';
+import { getTheme, setTheme } from '@alex.radulescu/styled-static';
+
+function ThemeSwitcher() {
+  const [currentTheme, setCurrentTheme] = useState(getTheme());
+
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme);
+    setCurrentTheme(newTheme);
+  };
+
+  return (
+    <div>
+      <p>Current theme: {currentTheme}</p>
+      <button onClick={() => handleThemeChange('light')}>Light</button>
+      <button onClick={() => handleThemeChange('dark')}>Dark</button>
+    </div>
+  );
+}
+```
+
+### Custom attribute
+
+```tsx
+const theme = getTheme('data-color-mode');
+```
+
+### Checking theme on load
+
+```tsx
+import { getTheme, initTheme } from '@alex.radulescu/styled-static';
+
+// Initialize theme
+initTheme({ defaultTheme: 'light', useSystemPreference: true });
+
+// Get current theme after initialization
+const current = getTheme();
+console.log(`Active theme: ${current}`);
+```

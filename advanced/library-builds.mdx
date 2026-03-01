@@ -1,0 +1,511 @@
+---
+title: "Library Builds"
+description: "Build component libraries with styled-static and enable tree-shaking for consumers"
+---
+
+# Building Component Libraries
+
+Styled-static is designed to work seamlessly with component library builds, providing tree-shakeable CSS and optimal bundle sizes for consumers.
+
+## Quick Start
+
+Here's a complete configuration for building a component library with styled-static:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import react from '@vitejs/plugin-react';
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig({
+  plugins: [
+    styledStatic({
+      cssOutput: 'file', // Enable CSS tree-shaking
+    }),
+    react(),
+  ],
+  build: {
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      formats: ['es'], // ES modules only
+      fileName: 'index',
+    },
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+      output: {
+        preserveModules: true, // Keep module structure
+        preserveModulesRoot: 'src',
+      },
+    },
+  },
+});
+```
+
+## CSS Output Modes
+
+### File Mode (Recommended for Libraries)
+
+With `cssOutput: 'file'`, each component's CSS is emitted as a separate file co-located with the JavaScript:
+
+```
+dist/
+├── index.js
+├── components/
+│   ├── Button.js
+│   ├── Button.css    ← Co-located CSS
+│   ├── Card.js
+│   └── Card.css      ← Co-located CSS
+```
+
+**Benefits:**
+- **Tree-Shakeable**: Consumers only import CSS for components they use
+- **Explicit Imports**: CSS imports are visible in the built output
+- **Better Caching**: Individual CSS files can be cached separately
+- **Debugging**: Easier to trace which components contribute which styles
+
+### Virtual Mode (For Applications)
+
+With `cssOutput: 'virtual'`, CSS is bundled into a single file:
+
+```
+dist/
+├── assets/
+│   ├── index-abc123.js
+│   └── index-abc123.css  ← All styles bundled
+```
+
+**Use For:**
+- Application builds
+- When consumers want a single CSS bundle
+- Simpler deployment scenarios
+
+### Auto Mode
+
+The default `cssOutput: 'auto'` automatically selects the best mode:
+- Detects `build.lib` in Vite config → uses `file` mode
+- Otherwise → uses `virtual` mode
+
+## Package Configuration
+
+### package.json
+
+Configure your package.json for optimal distribution:
+
+```json
+{
+  "name": "my-component-library",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly"
+  }
+}
+```
+
+**Key Points:**
+- `"type": "module"` - Use ES modules
+- `files: ["dist"]` - Only publish build output
+- `peerDependencies` - React as peer dependency
+- `exports` - Modern package entry points
+
+### TypeScript Configuration
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.test.tsx"]
+}
+```
+
+## Build Output Structure
+
+### With `preserveModules: true`
+
+Maintains the source directory structure:
+
+```
+src/
+├── index.ts
+├── components/
+│   ├── Button.tsx
+│   └── Card.tsx
+
+↓ builds to ↓
+
+dist/
+├── index.js
+├── index.d.ts
+├── components/
+│   ├── Button.js
+│   ├── Button.css      ← Co-located CSS
+│   ├── Button.d.ts
+│   ├── Card.js
+│   ├── Card.css        ← Co-located CSS
+│   └── Card.d.ts
+```
+
+### Without `preserveModules`
+
+Bundles into a single entry point:
+
+```
+dist/
+├── index.js
+├── index.css
+└── index.d.ts
+```
+
+<Note>
+  Using `preserveModules: true` provides better tree-shaking for consumers and clearer module boundaries.
+</Note>
+
+## Consumer Experience
+
+### Importing Components
+
+Consumers import components normally, and CSS is automatically included:
+
+```tsx
+// Consumer's code
+import { Button, Card } from 'my-component-library';
+
+// Vite automatically imports:
+// - my-component-library/dist/components/Button.js
+// - my-component-library/dist/components/Button.css
+// - my-component-library/dist/components/Card.js
+// - my-component-library/dist/components/Card.css
+
+function App() {
+  return (
+    <Card>
+      <Button>Click me</Button>
+    </Card>
+  );
+}
+```
+
+### Tree-Shaking in Action
+
+Only used components and their CSS are included in the consumer's bundle:
+
+```tsx
+// Consumer only imports Button
+import { Button } from 'my-component-library';
+
+// Only these files are bundled:
+// ✅ Button.js (4 KB)
+// ✅ Button.css (1 KB)
+// ❌ Card.js (not imported, not bundled)
+// ❌ Card.css (not imported, not bundled)
+
+// Final consumer bundle: 5 KB instead of 10 KB
+```
+
+## Advanced Patterns
+
+### Multiple Entry Points
+
+Provide separate entry points for different parts of your library:
+
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+
+export default defineConfig({
+  build: {
+    lib: {
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        hooks: resolve(__dirname, 'src/hooks/index.ts'),
+        utils: resolve(__dirname, 'src/utils/index.ts'),
+      },
+      formats: ['es'],
+    },
+  },
+});
+```
+
+```json
+// package.json
+{
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./hooks": {
+      "import": "./dist/hooks.js",
+      "types": "./dist/hooks.d.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils.js",
+      "types": "./dist/utils.d.ts"
+    }
+  }
+}
+```
+
+### CSS Variables for Theming
+
+Expose CSS variables for consumer customization:
+
+```tsx
+// src/components/Button.tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+export const Button = styled.button`
+  padding: var(--button-padding, 0.5rem 1rem);
+  background: var(--button-bg, blue);
+  color: var(--button-color, white);
+  border-radius: var(--button-radius, 4px);
+  
+  &:hover {
+    background: var(--button-bg-hover, darkblue);
+  }
+`;
+```
+
+Consumers can customize via CSS variables:
+
+```css
+/* Consumer's CSS */
+:root {
+  --button-padding: 1rem 2rem;
+  --button-bg: #3b82f6;
+  --button-bg-hover: #2563eb;
+  --button-radius: 8px;
+}
+```
+
+### Compound Component Pattern
+
+Export compound components with multiple pieces:
+
+```tsx
+// src/components/Card/index.ts
+import { styled } from '@alex.radulescu/styled-static';
+
+const CardRoot = styled.div`
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const CardHeader = styled.div`
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-weight: 600;
+`;
+
+const CardBody = styled.div`
+  padding: 1rem;
+`;
+
+const CardFooter = styled.div`
+  padding: 1rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+`;
+
+// Export as namespace
+export const Card = Object.assign(CardRoot, {
+  Header: CardHeader,
+  Body: CardBody,
+  Footer: CardFooter,
+});
+```
+
+Consumer usage:
+
+```tsx
+import { Card } from 'my-component-library';
+
+<Card>
+  <Card.Header>Title</Card.Header>
+  <Card.Body>Content</Card.Body>
+  <Card.Footer>Actions</Card.Footer>
+</Card>
+```
+
+## Testing Library Builds
+
+### Local Testing with npm link
+
+1. Build your library:
+```bash
+npm run build
+```
+
+2. Link locally:
+```bash
+npm link
+```
+
+3. In consumer project:
+```bash
+npm link my-component-library
+```
+
+4. Test the integration:
+```tsx
+import { Button } from 'my-component-library';
+
+<Button>Test</Button>
+```
+
+### Using Verdaccio (Local npm Registry)
+
+For more realistic testing:
+
+```bash
+# Install Verdaccio
+npm install -g verdaccio
+
+# Start local registry
+verdaccio
+
+# Publish to local registry
+npm publish --registry http://localhost:4873
+
+# Install in consumer
+npm install my-component-library --registry http://localhost:4873
+```
+
+## Publishing Checklist
+
+Before publishing your library:
+
+- [ ] Build output is in `dist/` directory
+- [ ] `package.json` has correct `exports` field
+- [ ] TypeScript declarations are generated
+- [ ] CSS files are co-located with JS files (file mode)
+- [ ] Peer dependencies are specified correctly
+- [ ] Test installation in a separate project
+- [ ] Verify tree-shaking works for consumers
+- [ ] Check bundle sizes are reasonable
+- [ ] README has installation and usage instructions
+
+## Bundle Size Optimization
+
+### Analyze Your Build
+
+Use rollup-plugin-visualizer to see what's in your bundle:
+
+```bash
+npm install -D rollup-plugin-visualizer
+```
+
+```ts
+// vite.config.ts
+import { visualizer } from 'rollup-plugin-visualizer';
+
+export default defineConfig({
+  plugins: [
+    styledStatic(),
+    react(),
+    visualizer({ open: true }), // Opens analysis in browser
+  ],
+});
+```
+
+### Reduce Bundle Size
+
+1. **External dependencies**: Mark heavy dependencies as peer deps
+2. **Tree-shaking**: Use named exports, avoid default exports
+3. **Code splitting**: Use dynamic imports for large features
+4. **Minification**: Ensure production builds are minified
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove console.logs
+      },
+    },
+  },
+});
+```
+
+## Common Issues
+
+### CSS Not Included in Consumer Bundle
+
+**Solution**: Ensure Vite is configured to process CSS imports:
+
+```ts
+// Consumer's vite.config.ts
+export default defineConfig({
+  // CSS should be processed by default
+  // If issues persist, check for CSS exclusions
+});
+```
+
+### Type Declarations Missing
+
+**Solution**: Generate TypeScript declarations:
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "./dist"
+  }
+}
+```
+
+### React Version Conflicts
+
+**Solution**: Use peer dependencies and ensure React 19+ is installed:
+
+```json
+{
+  "peerDependencies": {
+    "react": "^19.0.0"
+  }
+}
+```
+
+## Related
+
+- [Configuration](/advanced/configuration) - Plugin configuration options
+- [TypeScript](/advanced/typescript) - Type safety in libraries
+- [Troubleshooting](/troubleshooting) - Common issues and solutions

@@ -1,0 +1,202 @@
+---
+title: keyframes
+description: Create scoped keyframe animations with automatic name hashing
+---
+
+Create keyframe animations that are scoped and hashed to avoid naming conflicts. The animation name is automatically generated at build time.
+
+## Function Signature
+
+```typescript
+function keyframes(
+  strings: TemplateStringsArray,
+  ...interpolations: never[]
+): string;
+```
+
+## Parameters
+
+<ParamField path="strings" type="TemplateStringsArray" required>
+  Template literal strings containing keyframe rules
+</ParamField>
+
+<ParamField path="interpolations" type="never[]">
+  No interpolations allowed - keyframes must be static
+</ParamField>
+
+## Returns
+
+<ResponseField name="animationName" type="string">
+  A scoped animation name (e.g., `"ss-abc123"`)
+</ResponseField>
+
+## Usage
+
+### Basic Animation
+
+Create a simple spinning animation:
+
+```tsx
+import { keyframes, styled } from '@alex.radulescu/styled-static';
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Spinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 2px solid #3b82f6;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
+`;
+```
+
+### Complex Animations
+
+Use percentage-based keyframes for more complex animations:
+
+```tsx
+const pulse = keyframes`
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+`;
+
+const PulsingDot = styled.div`
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: ${pulse} 2s ease-in-out infinite;
+`;
+```
+
+### Multiple Animations
+
+Combine multiple keyframe animations:
+
+```tsx
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+const slideUp = keyframes`
+  from { transform: translateY(20px); }
+  to { transform: translateY(0); }
+`;
+
+const Modal = styled.div`
+  animation: 
+    ${fadeIn} 0.3s ease-out,
+    ${slideUp} 0.3s ease-out;
+`;
+```
+
+### Loading Indicators
+
+Create loading animations with multiple steps:
+
+```tsx
+const bounce = keyframes`
+  0%, 80%, 100% { 
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% { 
+    transform: scale(1);
+    opacity: 1;
+  }
+`;
+
+const LoadingDot = styled.div`
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border-radius: 50%;
+  animation: ${bounce} 1.4s ease-in-out infinite;
+  
+  &:nth-child(1) { animation-delay: -0.32s; }
+  &:nth-child(2) { animation-delay: -0.16s; }
+`;
+```
+
+## How It Works
+
+### Build-Time Transformation
+
+Keyframes are extracted and hashed at build time:
+
+```tsx
+// What you write:
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Spinner = styled.div`
+  animation: ${spin} 1s linear infinite;
+`;
+
+// What gets generated:
+const spin = "ss-abc123";
+
+const Spinner = /* ... */;
+
+// In CSS output:
+// @keyframes ss-abc123 {
+//   from { transform: rotate(0deg); }
+//   to { transform: rotate(360deg); }
+// }
+// .ss-xyz789 { animation: ss-abc123 1s linear infinite; }
+```
+
+### Automatic Scoping
+
+Animation names are automatically hashed to avoid conflicts:
+
+```tsx
+// Component A
+const spin = keyframes`...`; // → "ss-abc123"
+
+// Component B (different file)
+const spin = keyframes`...`; // → "ss-def456"
+
+// No naming conflicts!
+```
+
+## Animation Properties
+
+Use keyframes with any animation properties:
+
+```tsx
+const wiggle = keyframes`
+  0%, 100% { transform: rotate(-3deg); }
+  50% { type: rotate(3deg); }
+`;
+
+const Button = styled.button`
+  /* Long form */
+  animation-name: ${wiggle};
+  animation-duration: 0.5s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  
+  /* Shorthand */
+  animation: ${wiggle} 0.5s ease-in-out infinite;
+`;
+```
+
+## See Also
+
+- [styled](/api/styled) - Create styled components
+- [css](/api/css) - Get a scoped class name
+- [createGlobalStyle](/api/create-global-style) - Create global styles

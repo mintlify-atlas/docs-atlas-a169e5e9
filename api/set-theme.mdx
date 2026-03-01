@@ -1,0 +1,118 @@
+---
+title: setTheme
+description: Set the current theme and optionally persist it to localStorage
+---
+
+## Usage
+
+Set the active theme on the document element and optionally save it to localStorage for persistence across sessions.
+
+```tsx
+import { setTheme } from '@alex.radulescu/styled-static';
+
+// Set theme and persist
+setTheme('dark');
+
+// Set theme without persisting (e.g., for preview)
+setTheme('pokemon', false);
+```
+
+## Signature
+
+```tsx
+function setTheme(
+  theme: string,
+  persist?: boolean,
+  options?: { storageKey?: string; attribute?: string }
+): void
+```
+
+## Parameters
+
+<ParamField path="theme" type="string" required>
+  The theme name to set (e.g., 'dark', 'pokemon', 'star-trek')
+</ParamField>
+
+<ParamField path="persist" type="boolean" default="true">
+  Whether to save the theme to localStorage. Set to `false` for temporary theme changes like previews
+</ParamField>
+
+<ParamField path="options" type="object" default="{}">
+  Additional configuration options
+  
+  <Expandable title="properties">
+    <ParamField path="storageKey" type="string" default="'theme'">
+      The localStorage key to use for persisting the theme
+    </ParamField>
+    
+    <ParamField path="attribute" type="string" default="'data-theme'">
+      The attribute name to set on documentElement. Supports both `data-*` attributes and regular attributes
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ResponseField name="void" type="void">
+  This function does not return a value
+</ResponseField>
+
+## Behavior
+
+The function:
+
+1. Sets the specified attribute on `document.documentElement` with the theme value
+2. If `persist` is `true` (default), saves the theme to localStorage using the configured `storageKey`
+3. Handles both `data-*` attributes and regular attributes correctly
+4. Gracefully handles environments where `localStorage` is unavailable (e.g., private browsing)
+
+## Examples
+
+### Switch themes
+
+```tsx
+import { setTheme } from '@alex.radulescu/styled-static';
+
+// Switch to dark theme and persist
+setTheme('dark');
+
+// Switch to custom theme and persist
+setTheme('pokemon');
+```
+
+### Preview without persisting
+
+```tsx
+// Set theme temporarily for preview
+setTheme('pokemon', false);
+```
+
+### Custom storage key and attribute
+
+```tsx
+setTheme('dark', true, {
+  storageKey: 'my-app-theme',
+  attribute: 'data-color-mode',
+});
+```
+
+### Using with CSS variables
+
+```tsx
+import { createGlobalStyle, setTheme } from '@alex.radulescu/styled-static';
+
+const GlobalStyle = createGlobalStyle`
+  :root, [data-theme="light"] { --bg: #fff; --text: #1a1a1a; }
+  [data-theme="dark"] { --bg: #0a0a0a; --text: #f1f5f9; }
+  [data-theme="pokemon"] { --bg: #ffcb05; --text: #2a75bb; }
+`;
+
+const Card = styled.div`
+  background: var(--bg);
+  color: var(--text);
+`;
+
+// Switch between themes
+setTheme('dark');
+setTheme('pokemon', false); // Preview without persisting
+```

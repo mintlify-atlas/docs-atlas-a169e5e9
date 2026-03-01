@@ -1,0 +1,574 @@
+---
+title: "TypeScript"
+description: "Full TypeScript support with type inference, type safety, and advanced patterns"
+---
+
+# TypeScript Support
+
+Styled-static is built with TypeScript and provides complete type safety for all APIs, with full inference for component props and variants.
+
+## Type Inference
+
+### Styled Components
+
+Component types are automatically inferred from the element or component being styled:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+// HTML element - inherits button props
+const Button = styled.button`
+  padding: 1rem;
+  background: blue;
+`;
+
+// ✅ All button props are available
+<Button onClick={() => console.log('clicked')} type="submit">
+  Click me
+</Button>
+
+// ❌ TypeScript error: 'href' is not a button prop
+<Button href="/link">Error</Button>
+```
+
+### Extended Components
+
+When extending components, props are preserved:
+
+```tsx
+const PrimaryButton = styled(Button)`
+  font-weight: bold;
+`;
+
+// ✅ Inherits all button props
+<PrimaryButton onClick={handleClick} disabled={isLoading}>
+  Submit
+</PrimaryButton>
+```
+
+### Custom Components
+
+Extending custom components with typed props:
+
+```tsx
+import { ComponentType } from 'react';
+import { styled } from '@alex.radulescu/styled-static';
+
+interface LinkProps {
+  to: string;
+  className?: string;
+  children: React.ReactNode;
+}
+
+const Link: ComponentType<LinkProps> = ({ to, className, children }) => (
+  <a href={to} className={className}>{children}</a>
+);
+
+// Styled component inherits LinkProps
+const StyledLink = styled(Link)`
+  color: blue;
+  text-decoration: none;
+`;
+
+// ✅ TypeScript knows about 'to' prop
+<StyledLink to="/about">About</StyledLink>
+
+// ❌ TypeScript error: 'to' is required
+<StyledLink>Missing to prop</StyledLink>
+```
+
+## Variant Types
+
+### Typed Variants
+
+Variant props are automatically inferred from the configuration:
+
+```tsx
+import { styledVariants, css } from '@alex.radulescu/styled-static';
+
+const Button = styledVariants({
+  component: 'button',
+  css: css`padding: 1rem;`,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+      danger: css`background: red;`,
+      success: css`background: green;`,
+    },
+    size: {
+      sm: css`font-size: 0.875rem;`,
+      md: css`font-size: 1rem;`,
+      lg: css`font-size: 1.25rem;`,
+    },
+  },
+});
+
+// ✅ Autocomplete works for variant values
+<Button color="primary" size="lg">Large Primary Button</Button>
+
+// ❌ TypeScript error: 'purple' is not a valid color
+<Button color="purple">Error</Button>
+
+// ✅ Variant props are optional
+<Button>Default styling</Button>
+```
+
+### Extracting Variant Props
+
+Use `VariantProps` to extract variant prop types:
+
+```tsx
+import { styledVariants, VariantProps } from '@alex.radulescu/styled-static';
+
+const buttonConfig = {
+  component: 'button' as const,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+      danger: css`background: red;`,
+    },
+  },
+} as const;
+
+const Button = styledVariants(buttonConfig);
+
+// Extract variant types
+type ButtonVariants = VariantProps<typeof buttonConfig.variants>;
+// Type: { color?: 'primary' | 'danger' }
+
+// Use in custom components
+function CustomButton(props: ButtonVariants) {
+  return <Button {...props}>Custom</Button>;
+}
+```
+
+### CSS Variants Type
+
+```tsx
+import { cssVariants, CssVariantsFunction } from '@alex.radulescu/styled-static';
+
+const buttonStyles = cssVariants({
+  css: css`padding: 1rem;`,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+      danger: css`background: red;`,
+    },
+  },
+});
+
+// Type is inferred: CssVariantsFunction<{ color: { primary: string, danger: string } }>
+
+// ✅ TypeScript checks variant values
+const className = buttonStyles({ color: 'primary' });
+
+// ❌ TypeScript error
+const invalid = buttonStyles({ color: 'invalid' });
+```
+
+## Advanced Types
+
+### PropsOf Utility
+
+Extract props from HTML tags or components:
+
+```tsx
+import { PropsOf } from '@alex.radulescu/styled-static';
+
+// Extract props from HTML element
+type ButtonProps = PropsOf<'button'>;
+// Type: React.ButtonHTMLAttributes<HTMLButtonElement>
+
+// Extract props from component
+type LinkProps = PropsOf<typeof Link>;
+```
+
+### StyledComponent Type
+
+Type for styled components with explicit typing:
+
+```tsx
+import { styled, StyledComponent } from '@alex.radulescu/styled-static';
+import { ComponentType } from 'react';
+
+// Explicit typing for library exports
+export const Button: StyledComponent<'button'> = styled.button`
+  padding: 1rem;
+`;
+
+// With custom components
+const CustomComponent: ComponentType<CustomProps> = (props) => <div {...props} />;
+export const StyledCustom: StyledComponent<typeof CustomComponent> = styled(CustomComponent)`
+  color: blue;
+`;
+```
+
+### Keyframes Type
+
+Typed keyframe animations:
+
+```tsx
+import { keyframes, Keyframes } from '@alex.radulescu/styled-static';
+
+// Type is Keyframes (branded string)
+const spin: Keyframes = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Spinner = styled.div`
+  animation: ${spin} 1s linear infinite;
+`;
+```
+
+## Type-Safe Attrs
+
+Attributes are type-checked based on the element:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+// ✅ Valid button attributes
+const SubmitButton = styled.button.attrs({
+  type: 'submit',
+  disabled: false,
+})`
+  padding: 1rem;
+`;
+
+// ❌ TypeScript error: 'href' is not a button attribute
+const InvalidButton = styled.button.attrs({
+  href: '/link', // Error!
+})`
+  padding: 1rem;
+`;
+
+// ✅ Valid input attributes
+const PasswordInput = styled.input.attrs({
+  type: 'password',
+  autoComplete: 'current-password',
+})`
+  padding: 0.5rem;
+`;
+```
+
+### Dynamic Attrs
+
+Attrs can be functions that receive props:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+interface CustomButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  loading?: boolean;
+}
+
+const Button = styled.button.attrs<CustomButtonProps>((props) => ({
+  disabled: props.disabled || props.loading,
+  'aria-busy': props.loading,
+}))`
+  padding: 1rem;
+  opacity: ${props => props.disabled ? 0.5 : 1};
+`;
+
+// ✅ TypeScript infers loading prop
+<Button loading>Loading...</Button>
+```
+
+## Polymorphism Types
+
+Type-safe polymorphic components with `withComponent`:
+
+```tsx
+import { styled, withComponent } from '@alex.radulescu/styled-static';
+import { Link } from 'react-router-dom';
+
+const Button = styled.button`
+  padding: 1rem;
+  background: blue;
+`;
+
+// Type is inferred from Link
+const LinkButton = withComponent(Link, Button);
+
+// ✅ TypeScript knows about Link props
+<LinkButton to="/path" state={{ from: 'home' }}>
+  Router Link
+</LinkButton>
+
+// ❌ TypeScript error: 'href' is not a Link prop
+<LinkButton href="/path">Error</LinkButton>
+
+// ✅ With HTML element
+const AnchorButton = withComponent('a', Button);
+<AnchorButton href="https://example.com">External</AnchorButton>
+```
+
+## Generic Components
+
+Create generic styled components:
+
+```tsx
+import { styled, StyledComponent } from '@alex.radulescu/styled-static';
+import { ComponentType } from 'react';
+
+interface ListProps<T> {
+  items: T[];
+  renderItem: (item: T) => React.ReactNode;
+  className?: string;
+}
+
+function List<T>({ items, renderItem, className }: ListProps<T>) {
+  return (
+    <ul className={className}>
+      {items.map((item, i) => (
+        <li key={i}>{renderItem(item)}</li>
+      ))}
+    </ul>
+  );
+}
+
+// Style the generic component
+const StyledList = styled(List as ComponentType<ListProps<any>>)`
+  list-style: none;
+  padding: 0;
+`;
+
+// Usage with type inference
+interface Todo {
+  id: number;
+  text: string;
+}
+
+const todos: Todo[] = [
+  { id: 1, text: 'Buy milk' },
+  { id: 2, text: 'Walk dog' },
+];
+
+<StyledList<Todo>
+  items={todos}
+  renderItem={(todo) => todo.text} // 'todo' is typed as Todo
+/>
+```
+
+## Type Safety Best Practices
+
+### 1. Use `as const` for Variant Configs
+
+Preserve literal types for better inference:
+
+```tsx
+// ✅ Good - literal types preserved
+const buttonConfig = {
+  component: 'button' as const,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+    },
+  },
+} as const;
+
+// ❌ Avoid - types widened to string
+const badConfig = {
+  component: 'button',
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+    },
+  },
+};
+```
+
+### 2. Export Component Types
+
+Make component types available to consumers:
+
+```tsx
+// components/Button.tsx
+import { styled, StyledComponent } from '@alex.radulescu/styled-static';
+
+export const Button: StyledComponent<'button'> = styled.button`
+  padding: 1rem;
+`;
+
+export type ButtonProps = React.ComponentProps<typeof Button>;
+```
+
+### 3. Type Component Wrappers
+
+When wrapping styled components, preserve types:
+
+```tsx
+import { ComponentProps } from 'react';
+
+const Button = styled.button`padding: 1rem;`;
+
+// ✅ Preserves all button props
+function IconButton({
+  icon,
+  children,
+  ...buttonProps
+}: ComponentProps<typeof Button> & { icon: React.ReactNode }) {
+  return (
+    <Button {...buttonProps}>
+      {icon}
+      {children}
+    </Button>
+  );
+}
+```
+
+### 4. Strict Mode Configuration
+
+Enable strict TypeScript checks:
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitAny": true,
+    "noUncheckedIndexedAccess": true
+  }
+}
+```
+
+## Common Type Patterns
+
+### Forwarding Refs
+
+React 19+ automatically forwards refs, no `forwardRef` needed:
+
+```tsx
+import { useRef } from 'react';
+
+const Button = styled.button`padding: 1rem;`;
+
+function App() {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  
+  // ✅ Ref is automatically forwarded
+  return <Button ref={buttonRef}>Click me</Button>;
+}
+```
+
+### Discriminated Unions with Variants
+
+Combine variants with discriminated union types:
+
+```tsx
+type ButtonProps = 
+  | { variant: 'link'; href: string }
+  | { variant: 'button'; onClick: () => void };
+
+function SmartButton(props: ButtonProps) {
+  if (props.variant === 'link') {
+    // TypeScript knows 'href' exists
+    return <a href={props.href}>Link</a>;
+  }
+  // TypeScript knows 'onClick' exists
+  return <button onClick={props.onClick}>Button</button>;
+}
+```
+
+### Extending Native Elements
+
+Add custom props to native elements:
+
+```tsx
+import { ComponentProps } from 'react';
+
+const Button = styled.button`padding: 1rem;`;
+
+interface ExtendedButtonProps extends ComponentProps<typeof Button> {
+  loading?: boolean;
+  icon?: React.ReactNode;
+}
+
+function EnhancedButton({ loading, icon, children, ...props }: ExtendedButtonProps) {
+  return (
+    <Button {...props} disabled={props.disabled || loading}>
+      {loading ? 'Loading...' : (
+        <>
+          {icon}
+          {children}
+        </>
+      )}
+    </Button>
+  );
+}
+```
+
+## IDE Support
+
+### VSCode
+
+Styled-static works with VSCode's built-in TypeScript support. For better CSS syntax highlighting in template literals, install:
+
+**[vscode-styled-components](https://marketplace.visualstudio.com/items?itemName=styled-components.vscode-styled-components)**
+
+This provides:
+- CSS syntax highlighting
+- IntelliSense for CSS properties
+- Autocomplete for CSS values
+
+### Other IDEs
+
+Most modern IDEs (WebStorm, IntelliJ IDEA) have built-in support for TypeScript and template literal syntax highlighting.
+
+## Troubleshooting Types
+
+### Type Errors in Styled Components
+
+**Issue**: Component types not inferred correctly
+
+**Solution**: Explicitly type the component:
+
+```tsx
+import { StyledComponent } from '@alex.radulescu/styled-static';
+
+const Button: StyledComponent<'button'> = styled.button`
+  padding: 1rem;
+`;
+```
+
+### Variant Type Errors
+
+**Issue**: Variant props not recognized
+
+**Solution**: Use `as const` for variant config:
+
+```tsx
+const config = {
+  component: 'button' as const,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+    },
+  },
+} as const;
+
+const Button = styledVariants(config);
+```
+
+### Generic Component Types
+
+**Issue**: Generic components lose type information
+
+**Solution**: Use `ComponentType` with explicit generics:
+
+```tsx
+import { ComponentType } from 'react';
+
+const StyledGeneric = styled(GenericComponent as ComponentType<GenericProps<any>>)`
+  /* styles */
+`;
+```
+
+## Related
+
+- [Configuration](/advanced/configuration) - Plugin configuration
+- [Library Builds](/advanced/library-builds) - TypeScript in libraries
+- [styled API](/api/styled) - Complete API types

@@ -1,0 +1,191 @@
+---
+title: withComponent
+description: Create a component that renders one element with another's styles
+---
+
+The `withComponent` function creates a component that renders one element with another component's styles. This is a build-time alternative to the runtime `as` prop found in other CSS-in-JS libraries.
+
+## Signature
+
+```typescript
+function withComponent<
+  T extends HTMLTag | ComponentType<any>,
+  F extends { className: string }
+>(
+  toComponent: T,
+  fromComponent: F
+): StyledComponent<T> & { className: string }
+```
+
+## Parameters
+
+<ParamField path="toComponent" type="HTMLTag | ComponentType<any>" required>
+  The component or HTML tag string to render (e.g., `Link`, `'a'`, `'button'`)
+</ParamField>
+
+<ParamField path="fromComponent" type="StyledComponent" required>
+  The styled component whose styles to apply
+</ParamField>
+
+## Returns
+
+Returns a new styled component that:
+- Renders as `toComponent`
+- Applies the styles from `fromComponent`
+- Exposes a `.className` property for manual composition
+- Accepts props for the target component type
+
+## Examples
+
+### Basic Usage with React Router
+
+```tsx
+import { Link } from 'react-router-dom';
+import { styled, withComponent } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 1rem;
+  background: blue;
+  color: white;
+  border: none;
+  border-radius: 4px;
+`;
+
+// Create a Link that looks like a Button
+const LinkButton = withComponent(Link, Button);
+
+// Usage
+<LinkButton to="/home">Go Home</LinkButton>
+```
+
+### With HTML Tags
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+`;
+
+// Render as an anchor tag with button styles
+const ButtonAsAnchor = withComponent('a', Button);
+
+<ButtonAsAnchor href="/external">External Link</ButtonAsAnchor>
+```
+
+### Further Extension
+
+Components created with `withComponent` can be extended further:
+
+```tsx
+const LinkButton = withComponent(Link, Button);
+
+// Extend the LinkButton with additional styles
+const PrimaryLinkButton = styled(LinkButton)`
+  font-weight: bold;
+  text-transform: uppercase;
+`;
+
+<PrimaryLinkButton to="/important">Important Link</PrimaryLinkButton>
+```
+
+## Build-Time Transformation
+
+`withComponent` has zero runtime cost - it's completely replaced at build time:
+
+```tsx
+// What you write:
+const LinkButton = withComponent(Link, Button);
+
+// What gets generated (simplified):
+const LinkButton = Object.assign(
+  (p) => createElement(Link, {
+    ...p,
+    className: m(Button.className, p.className)
+  }),
+  { className: Button.className }
+);
+```
+
+## Type Safety
+
+TypeScript automatically infers the correct prop types from the target component:
+
+```tsx
+const LinkButton = withComponent(Link, Button);
+
+// ✅ Valid - LinkButton accepts Link props
+<LinkButton to="/home">Home</LinkButton>
+
+// ❌ Type error - 'href' is not a Link prop
+<LinkButton href="/home">Home</LinkButton>
+
+const AnchorButton = withComponent('a', Button);
+
+// ✅ Valid - AnchorButton accepts anchor props
+<AnchorButton href="/external">External</AnchorButton>
+
+// ❌ Type error - 'to' is not an anchor prop
+<AnchorButton to="/home">Home</AnchorButton>
+```
+
+## Use Cases
+
+### Router Links Styled as Buttons
+
+```tsx
+import { Link } from 'react-router-dom';
+
+const Button = styled.button`
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  border-radius: 6px;
+  
+  &:hover {
+    background: #2563eb;
+  }
+`;
+
+const LinkButton = withComponent(Link, Button);
+
+<LinkButton to="/dashboard">Go to Dashboard</LinkButton>
+```
+
+### Semantic HTML with Consistent Styles
+
+```tsx
+const BaseCard = styled.div`
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+`;
+
+// Use semantic HTML while maintaining styles
+const ArticleCard = withComponent('article', BaseCard);
+const SectionCard = withComponent('section', BaseCard);
+
+<ArticleCard>
+  <h2>Article Title</h2>
+  <p>Article content...</p>
+</ArticleCard>
+```
+
+## Alternative: Manual Composition
+
+If you only need the styles without creating a new component, use the `.className` property:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: blue;
+`;
+
+// Apply button styles to any element
+<Link className={Button.className} to="/home">
+  Link with Button styles
+</Link>
+```
+
+See the [styled API documentation](/api/styled) for more details on the `.className` property.

@@ -1,0 +1,164 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions when using styled-static"
+---
+
+## Common Issues
+
+Find solutions to the most common problems when using styled-static.
+
+<AccordionGroup>
+  <Accordion title="Storybook: 'This package is ESM only' error">
+    If you see this error when using styled-static with Storybook:
+
+    ```
+    Failed to resolve "@alex.radulescu/styled-static/vite".
+    This package is ESM only but it was tried to load by `require`.
+    ```
+
+    **Solution:** Add the package to Vite's `optimizeDeps.include` in your Storybook config:
+
+    ```ts .storybook/main.ts
+    export default {
+      // ... other config
+      viteFinal: async (config) => {
+        config.optimizeDeps = config.optimizeDeps || {};
+        config.optimizeDeps.include = [
+          ...(config.optimizeDeps.include || []),
+          '@alex.radulescu/styled-static',
+        ];
+        return config;
+      },
+    };
+    ```
+
+    This is a known limitation with ESM-only packages in Storybook's esbuild-based config loading.
+  </Accordion>
+
+  <Accordion title="Plugin not transforming code">
+    If you see an error like:
+
+    ```
+    styled was not transformed at build time.
+    ```
+
+    **Solution:** Ensure the styled-static plugin is configured correctly in `vite.config.ts`:
+
+    ```ts vite.config.ts
+    import { styledStatic } from '@alex.radulescu/styled-static/vite';
+    import react from '@vitejs/plugin-react';
+    import { defineConfig } from 'vite';
+
+    export default defineConfig({
+      plugins: [styledStatic(), react()],
+    });
+    ```
+
+    <Warning>
+      The `styledStatic()` plugin must be placed **before** the React plugin in the plugins array.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Styles not appearing in production">
+    If your styles work in development but disappear in production builds:
+
+    **Solution:** Check that:
+
+    1. Your build process is completing successfully
+    2. CSS files are being generated in the `dist` folder
+    3. Your HTML file is loading the generated CSS
+
+    The plugin automatically extracts CSS during the build process. If you're using a custom build configuration, ensure Vite's CSS pipeline is not disabled.
+  </Accordion>
+
+  <Accordion title="TypeScript errors with styled components">
+    If you're seeing TypeScript errors when using styled components:
+
+    **Solution:** Ensure you have proper type definitions installed:
+
+    ```bash
+    npm install --save-dev @types/react
+    ```
+
+    The library provides full TypeScript support out of the box. If you're extending styled components with custom props, make sure to properly type them:
+
+    ```tsx
+    interface ButtonProps {
+      variant?: 'primary' | 'secondary';
+    }
+
+    const Button = styled.button<ButtonProps>`
+      padding: 0.5rem 1rem;
+    `;
+    ```
+  </Accordion>
+
+  <Accordion title="CSS nesting not working">
+    If CSS nesting syntax is not working in your styles:
+
+    **Solution:** styled-static uses native CSS nesting, which is supported in all modern browsers:
+
+    - Chrome 112+
+    - Safari 16.5+
+    - Firefox 117+
+    - Edge 112+
+
+    If you need to support older browsers, consider using [Lightning CSS](https://lightningcss.dev/) with Vite:
+
+    ```bash
+    npm install lightningcss
+    ```
+
+    ```ts vite.config.ts
+    export default defineConfig({
+      css: { transformer: 'lightningcss' },
+      plugins: [styledStatic(), react()],
+    });
+    ```
+  </Accordion>
+
+  <Accordion title="Hot Module Replacement (HMR) not working">
+    If style changes don't update immediately during development:
+
+    **Solution:** This is usually caused by:
+
+    1. **Browser caching**: Try a hard refresh (Ctrl+Shift+R or Cmd+Shift+R)
+    2. **Plugin order**: Ensure `styledStatic()` comes before `react()` in your Vite config
+    3. **File watching**: Check that your file isn't being ignored by Vite's watcher
+
+    HMR for CSS changes is built into the plugin and should work automatically.
+  </Accordion>
+
+  <Accordion title="Class names are too long in development">
+    In development mode, styled-static generates readable class names like `ss-Button-MyComponent`.
+
+    **This is intentional** for better debugging. In production builds, class names are automatically hashed to minimal sizes like `ss-abc123` for optimal performance.
+
+    If you want to customize the prefix, use the `classPrefix` option:
+
+    ```ts vite.config.ts
+    styledStatic({ classPrefix: 'my-app' })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+If you're still experiencing issues:
+
+<CardGroup cols={2}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/alexradulescu/styled-static/issues">
+    Report bugs or request features on GitHub
+  </Card>
+  
+  <Card title="Source Code" icon="code" href="https://github.com/alexradulescu/styled-static">
+    View the source code and implementation details
+  </Card>
+</CardGroup>
+
+<Tip>
+  When reporting issues, include:
+  - Your `vite.config.ts` configuration
+  - The styled-static version you're using
+  - A minimal reproduction of the issue
+</Tip>

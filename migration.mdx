@@ -1,0 +1,497 @@
+---
+title: "Migration Guide"
+description: "Migrate from Emotion, styled-components, Linaria, or other CSS-in-JS libraries to styled-static"
+---
+
+## Overview
+
+Migrating to styled-static requires understanding its key differences from traditional CSS-in-JS libraries. This guide will help you migrate from popular libraries.
+
+<Warning>
+  Before migrating, ensure your project meets these requirements:
+  - **React 19+** (uses automatic ref forwarding)
+  - **Vite** as your bundler (not Webpack/Rollup)
+</Warning>
+
+## Key Differences
+
+Before starting your migration, understand these fundamental differences:
+
+<AccordionGroup>
+  <Accordion title="No Runtime Interpolation">
+    styled-static extracts CSS at build time, so you cannot use runtime props in template literals:
+
+    ```tsx
+    // ❌ Not supported
+    const Button = styled.button`
+      background: ${props => props.primary ? 'blue' : 'gray'};
+    `;
+
+    // ✅ Use variants instead
+    const Button = styledVariants({
+      component: 'button',
+      css: css`background: gray;`,
+      variants: {
+        primary: {
+          true: css`background: blue;`,
+        },
+      },
+    });
+
+    // Or use CSS variables
+    const Button = styled.button`
+      background: var(--button-bg, gray);
+    `;
+    <Button style={{ '--button-bg': 'blue' }} />
+    ```
+  </Accordion>
+
+  <Accordion title="No css Prop">
+    styled-static doesn't support the `css` prop. Use the `css` helper with `className` instead:
+
+    ```tsx
+    // ❌ Not supported
+    <div css={css`color: blue;`} />
+
+    // ✅ Use className
+    const blueText = css`color: blue;`;
+    <div className={blueText} />
+    ```
+  </Accordion>
+
+  <Accordion title="React 19+ Only">
+    styled-static uses automatic ref forwarding from React 19. No `forwardRef` needed:
+
+    ```tsx
+    // Old way (React < 19)
+    const Button = forwardRef((props, ref) => (
+      <button ref={ref} {...props} />
+    ));
+
+    // New way (styled-static)
+    const Button = styled.button`
+      padding: 1rem;
+    `;
+    // Refs work automatically!
+    ```
+  </Accordion>
+
+  <Accordion title="Vite Only">
+    styled-static uses Vite's plugin system and cannot work with Webpack or Rollup:
+
+    ```ts vite.config.ts
+    import { styledStatic } from '@alex.radulescu/styled-static/vite';
+    import react from '@vitejs/plugin-react';
+
+    export default defineConfig({
+      plugins: [styledStatic(), react()],
+    });
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Migrating from Emotion
+
+### 1. Update Dependencies
+
+```bash
+# Remove Emotion
+npm uninstall @emotion/react @emotion/styled
+
+# Install styled-static
+npm install @alex.radulescu/styled-static
+```
+
+### 2. Configure Vite Plugin
+
+```ts vite.config.ts
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [styledStatic(), react()],
+});
+```
+
+### 3. Update Imports
+
+```tsx
+// Before (Emotion)
+import styled from '@emotion/styled';
+import { css } from '@emotion/react';
+
+// After (styled-static)
+import { styled, css } from '@alex.radulescu/styled-static';
+```
+
+### 4. Replace css Prop
+
+```tsx
+// Before (Emotion)
+<div css={css`color: blue;`} />
+
+// After (styled-static)
+const blueText = css`color: blue;`;
+<div className={blueText} />
+```
+
+### 5. Convert Dynamic Styles
+
+```tsx
+// Before (Emotion)
+const Button = styled.button`
+  background: ${props => props.primary ? 'blue' : 'gray'};
+  padding: ${props => props.size === 'large' ? '1rem' : '0.5rem'};
+`;
+
+// After (styled-static) - Use variants
+import { styledVariants, css } from '@alex.radulescu/styled-static';
+
+const Button = styledVariants({
+  component: 'button',
+  css: css`background: gray; padding: 0.5rem;`,
+  variants: {
+    primary: {
+      true: css`background: blue;`,
+    },
+    size: {
+      large: css`padding: 1rem;`,
+    },
+  },
+});
+
+// Usage
+<Button primary size="large">Click me</Button>
+```
+
+### 6. Update Global Styles
+
+```tsx
+// Before (Emotion)
+import { Global, css } from '@emotion/react';
+
+const globalStyles = css`
+  body { margin: 0; }
+`;
+
+<Global styles={globalStyles} />
+
+// After (styled-static)
+import { createGlobalStyle } from '@alex.radulescu/styled-static';
+
+const GlobalStyle = createGlobalStyle`
+  body { margin: 0; }
+`;
+
+<GlobalStyle />
+```
+
+## Migrating from styled-components
+
+### 1. Update Dependencies
+
+```bash
+# Remove styled-components
+npm uninstall styled-components
+
+# Install styled-static
+npm install @alex.radulescu/styled-static
+```
+
+### 2. Configure Vite Plugin
+
+```ts vite.config.ts
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+  plugins: [styledStatic(), react()],
+});
+```
+
+### 3. Update Imports
+
+```tsx
+// Before (styled-components)
+import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
+
+// After (styled-static)
+import { styled, createGlobalStyle, css, keyframes } from '@alex.radulescu/styled-static';
+```
+
+### 4. Convert ThemeProvider
+
+```tsx
+// Before (styled-components)
+import { ThemeProvider } from 'styled-components';
+
+const theme = { primary: 'blue' };
+
+<ThemeProvider theme={theme}>
+  <App />
+</ThemeProvider>
+
+const Button = styled.button`
+  background: ${props => props.theme.primary};
+`;
+
+// After (styled-static) - Use CSS variables
+import { createGlobalStyle } from '@alex.radulescu/styled-static';
+
+const GlobalStyle = createGlobalStyle`
+  :root {
+    --color-primary: blue;
+  }
+`;
+
+<GlobalStyle />
+<App />
+
+const Button = styled.button`
+  background: var(--color-primary);
+`;
+```
+
+### 5. Replace attrs with Static Values
+
+```tsx
+// Before (styled-components) - Dynamic attrs
+const Input = styled.input.attrs(props => ({
+  type: props.type || 'text',
+  size: props.size || '1rem',
+}))`
+  font-size: ${props => props.size};
+`;
+
+// After (styled-static) - Static attrs only
+const Input = styled.input.attrs({
+  type: 'text',
+})`
+  font-size: 1rem;
+`;
+
+// For dynamic values, use variants
+const Input = styledVariants({
+  component: 'input',
+  css: css`font-size: 1rem;`,
+  variants: {
+    size: {
+      small: css`font-size: 0.875rem;`,
+      large: css`font-size: 1.25rem;`,
+    },
+  },
+});
+```
+
+### 6. Replace as Prop
+
+```tsx
+// Before (styled-components)
+const Button = styled.button`padding: 1rem;`;
+<Button as="a" href="/link">Link</Button>
+
+// After (styled-static) - Use withComponent
+import { withComponent } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`padding: 1rem;`;
+const LinkButton = withComponent('a', Button);
+<LinkButton href="/link">Link</LinkButton>
+```
+
+## Migrating from Linaria
+
+### 1. Update Dependencies
+
+```bash
+# Remove Linaria
+npm uninstall @linaria/core @linaria/react @linaria/vite
+
+# Install styled-static
+npm install @alex.radulescu/styled-static
+```
+
+### 2. Update Vite Config
+
+```ts vite.config.ts
+// Before (Linaria)
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import linaria from '@linaria/vite';
+
+export default defineConfig({
+  plugins: [linaria(), react()],
+});
+
+// After (styled-static)
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig({
+  plugins: [styledStatic(), react()],
+});
+```
+
+### 3. Update Imports
+
+```tsx
+// Before (Linaria)
+import { styled } from '@linaria/react';
+import { css } from '@linaria/core';
+
+// After (styled-static)
+import { styled, css } from '@alex.radulescu/styled-static';
+```
+
+### 4. The Syntax is Very Similar!
+
+Most Linaria code works with minimal changes:
+
+```tsx
+// Works in both!
+const Button = styled.button`
+  padding: 1rem;
+  background: blue;
+  
+  &:hover {
+    background: darkblue;
+  }
+`;
+
+const activeClass = css`
+  color: red;
+`;
+```
+
+## Common Patterns
+
+### Conditional Styling
+
+```tsx
+// Use cx utility for conditional classes
+import { css, cx } from '@alex.radulescu/styled-static';
+
+const activeClass = css`color: blue;`;
+const disabledClass = css`opacity: 0.5;`;
+
+<Button className={cx(
+  isActive && activeClass,
+  isDisabled && disabledClass
+)} />
+```
+
+### Dynamic Values
+
+```tsx
+// Use CSS variables via style prop
+const Box = styled.div`
+  width: var(--box-width, 100px);
+  height: var(--box-height, 100px);
+`;
+
+<Box style={{
+  '--box-width': `${width}px`,
+  '--box-height': `${height}px`,
+}} />
+```
+
+### Responsive Styles
+
+```tsx
+// Native CSS media queries work great
+const Container = styled.div`
+  padding: 1rem;
+  
+  @media (min-width: 768px) {
+    padding: 2rem;
+  }
+  
+  @media (min-width: 1024px) {
+    padding: 3rem;
+  }
+`;
+```
+
+### Theming
+
+```tsx
+// Use CSS variables and data attributes
+import { createGlobalStyle, initTheme, setTheme } from '@alex.radulescu/styled-static';
+
+const GlobalStyle = createGlobalStyle`
+  :root, [data-theme="light"] {
+    --bg: white;
+    --text: black;
+  }
+  
+  [data-theme="dark"] {
+    --bg: black;
+    --text: white;
+  }
+`;
+
+const Card = styled.div`
+  background: var(--bg);
+  color: var(--text);
+`;
+
+// Initialize theme system
+initTheme({ defaultTheme: 'light', useSystemPreference: true });
+
+// Switch themes
+<button onClick={() => setTheme('dark')}>Dark Mode</button>
+```
+
+## Migration Checklist
+
+<Steps>
+  <Step title="Prerequisites">
+    - [ ] Using React 19+
+    - [ ] Using Vite (not Webpack/Rollup)
+    - [ ] Reviewed key differences above
+  </Step>
+  
+  <Step title="Installation">
+    - [ ] Removed old CSS-in-JS library
+    - [ ] Installed `@alex.radulescu/styled-static`
+    - [ ] Configured Vite plugin
+  </Step>
+  
+  <Step title="Code Updates">
+    - [ ] Updated all imports
+    - [ ] Replaced `css` prop with `className` + `css` helper
+    - [ ] Converted runtime interpolations to variants or CSS variables
+    - [ ] Updated theme provider to CSS variables
+    - [ ] Replaced `as` prop with `withComponent`
+    - [ ] Converted dynamic `attrs` to static values
+  </Step>
+  
+  <Step title="Testing">
+    - [ ] Tested in development mode
+    - [ ] Tested production build
+    - [ ] Verified HMR works
+    - [ ] Checked bundle size reduction
+  </Step>
+</Steps>
+
+## Need Help?
+
+If you encounter issues during migration:
+
+<CardGroup cols={2}>
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Common issues and solutions
+  </Card>
+  
+  <Card title="Comparison" icon="code-compare" href="/comparison">
+    Detailed feature comparison
+  </Card>
+  
+  <Card title="GitHub Issues" icon="github" href="https://github.com/alexradulescu/styled-static/issues">
+    Ask questions or report issues
+  </Card>
+  
+  <Card title="API Reference" icon="book" href="/api/styled">
+    Full API documentation
+  </Card>
+</CardGroup>

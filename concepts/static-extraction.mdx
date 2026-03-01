@@ -1,0 +1,607 @@
+---
+title: Static Extraction
+description: Deep dive into CSS extraction at build time in styled-static
+---
+
+# Static Extraction
+
+style-static extracts all CSS at build time, eliminating runtime stylesheet generation. This page explains the CSS extraction process in detail.
+
+## What Is Static Extraction?
+
+Static extraction means:
+
+1. **CSS is generated at build time** - No runtime parsing or processing
+2. **Virtual CSS modules** - Each styled component gets its own CSS module
+3. **Vite's CSS pipeline** - Leverages Vite's built-in CSS optimization
+4. **Zero dependencies** - Uses native CSS features (nesting, variables, etc.)
+
+## CSS Extraction Flow
+
+```
+Styled Template
+    ↓
+Extract CSS Content
+    ↓
+Generate Hash/Class Name
+    ↓
+Wrap CSS (scope/keyframes/global)
+    ↓
+Create Virtual CSS Module
+    ↓
+Vite's CSS Pipeline
+    ↓
+Optimized CSS Output
+```
+
+## Template Content Extraction
+
+The plugin extracts raw CSS from template literals:
+
+```ts
+/**
+ * Extract raw CSS content from a template literal.
+ * Handles the content between the backticks.
+ */
+export function extractTemplateContent(
+  code: string,
+  quasi: TemplateLiteralWithPosition
+): string {
+  return code.slice(quasi.start + 1, quasi.end - 1);
+}
+```
+
+**Example:**
+
+```tsx
+// Input template:
+const Button = styled.button`
+  padding: 1rem;
+  background: blue;
+`;
+
+// Extracted CSS:
+"\n  padding: 1rem;\n  background: blue;\n"
+```
+
+The raw CSS string includes whitespace and line breaks exactly as written.
+
+## CSS from Variants
+
+For variants, the plugin extracts CSS from different node types:
+
+```ts
+/**
+ * Extract CSS string from an AST node that may be:
+ * - A string literal: `"padding: 1rem;"`
+ * - A plain template literal: `` `padding: 1rem;` ``
+ * - A tagged css template: `` css`padding: 1rem;` ``
+ */
+export function extractCssFromValueNode(
+  node: ESTree.Expression,
+  code: string,
+  cssImportName: string | undefined
+): string | undefined {
+  if (node.type === "Literal" && typeof node.value === "string") {
+    return node.value;
+  }
+  if (node.type === "TemplateLiteral") {
+    const tpl = node as ESTree.TemplateLiteral & { start: number; end: number };
+    return code.slice(tpl.start + 1, tpl.end - 1);
+  }
+  if (node.type === "TaggedTemplateExpression") {
+    const tagged = node as ESTree.TaggedTemplateExpression & {
+      quasi: ESTree.TemplateLiteral & { start: number; end: number };
+    };
+    if (tagged.tag.type === "Identifier" && tagged.tag.name === cssImportName) {
+      return code.slice(tagged.quasi.start + 1, tagged.quasi.end - 1);
+    }
+  }
+  return undefined;
+}
+```
+
+This supports multiple CSS syntax styles in variant definitions.
+
+## Class Name Generation
+
+### Development Mode: Readable Names
+
+In dev mode, class names include the variable name and file name:
+
+```ts
+if (isDev && variableName) {
+  const fileBase = getFileBaseName(id);
+  className = `${classPrefix}-${variableName}-${fileBase}`;
+}
+```
+
+**Examples:**
+
+```tsx
+// File: components/Button.tsx
+const Button = styled.button`...`;
+// Class: ss-Button-Button
+
+const PrimaryButton = styled(Button)`...`;
+// Class: ss-PrimaryButton-Button
+```
+
+**Benefits:**
+- Easy to identify in DevTools
+- Helps debug which component owns which styles
+- No collision risk (includes file name)
+
+### Production Mode: Hash-Based Names
+
+In production, class names are hash-based for minimal size:
+
+```ts
+const hashLength = isDev ? 6 : 8;
+const cssHash = hash(cssContent).slice(0, hashLength);
+className = `${classPrefix}-${cssHash}`;
+```
+
+**Examples:**
+
+```css
+.ss-a1b2c3d4 { padding: 1rem; }
+.ss-e5f6g7h8 { background: blue; }
+```
+
+**Benefits:**
+- Minimal class name size (11-13 chars)
+- Deterministic (same CSS = same hash)
+- Low collision probability (8-char hash = ~2.8 trillion possibilities)
+
+### Hash Algorithm: Murmurhash2
+
+The plugin uses Murmurhash2 for fast, deterministic hashing:
+
+```ts
+/**
+ * Murmurhash2 implementation for generating short, deterministic hashes.
+ * Used to create unique class names from CSS content.
+ *
+ * Based on https://github.com/garycourt/murmurhash-js
+ * This is a well-known, fast, non-cryptographic hash function.
+ */
+export function hash(str: string): string {
+  let l = str.length;
+  let h = 0x9747b28c ^ l;
+  // ... murmurhash2 implementation ...
+  return (h >>> 0).toString(36);
+}
+```
+
+See `/home/daytona/workspace/source/src/hash.ts:1-51` for full implementation.
+
+**Why Murmurhash2?**
+- Fast (non-cryptographic)
+- Deterministic (same input = same output)
+- Good distribution (low collision rate)
+- Small output (base36 encoding)
+
+## CSS Wrapping Strategies
+
+The plugin wraps CSS differently based on template type:
+
+### 1. Scoped Styles (styled/css)
+
+```ts
+const processedCss = `.${className} { ${cssContent} }`;
+```
+
+**Output:**
+
+```css
+.ss-abc {
+  padding: 1rem;
+  background: blue;
+  color: white;
+}
+```
+
+### 2. Keyframes
+
+```ts
+const processedCss = `@keyframes ${className} { ${cssContent} }`;
+```
+
+**Output:**
+
+```css
+@keyframes ss-spin-xyz {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+```
+
+The animation name is returned as a string for use in `animation` properties.
+
+### 3. Global Styles
+
+```ts
+const processedCss = cssContent; // unscoped
+```
+
+**Output:**
+
+```css
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui; }
+:root { --color-primary: #3b82f6; }
+```
+
+No class wrapper - CSS is injected at the root level.
+
+### 4. Variant Styles
+
+Variants generate multiple CSS rules:
+
+```ts
+let allCss = "";
+
+// Base CSS
+if (baseCss) {
+  allCss += `.${baseClass} { ${baseCss} }\n`;
+}
+
+// Variant CSS (modifiers)
+for (const [variantName, values] of variants) {
+  for (const [valueName, cssContent] of values) {
+    const modifierClass = `${baseClass}--${variantName}-${valueName}`;
+    allCss += `.${modifierClass} { ${cssContent} }\n`;
+  }
+}
+
+// Compound variant CSS (combined selectors)
+if (compoundVariants) {
+  for (const cv of compoundVariants) {
+    const selectors = Array.from(cv.conditions.entries())
+      .map(([variantName, value]) => `.${baseClass}--${variantName}-${value}`)
+      .join("");
+    allCss += `${selectors} { ${cv.css} }\n`;
+  }
+}
+```
+
+**Example output:**
+
+```css
+/* Base */
+.ss-btn { padding: 0.5rem 1rem; }
+
+/* Variants */
+.ss-btn--size-sm { font-size: 0.875rem; }
+.ss-btn--size-lg { font-size: 1.125rem; }
+.ss-btn--color-primary { background: blue; }
+.ss-btn--color-danger { background: red; }
+
+/* Compound variants (higher specificity) */
+.ss-btn--size-lg.ss-btn--color-danger {
+  font-weight: 900;
+  text-transform: uppercase;
+}
+```
+
+**Compound variant specificity:** Combined selectors automatically match when individual variant classes are present. No runtime logic needed - CSS cascade handles it.
+
+## Virtual CSS Modules
+
+### Module ID Structure
+
+Each styled component gets a unique virtual module ID:
+
+```
+virtual:styled-static/
+  <normalized-file-path>/
+    <index>.css
+```
+
+**Example:**
+
+```
+virtual:styled-static/src/components/Button.tsx/0.css
+virtual:styled-static/src/components/Button.tsx/1.css
+virtual:styled-static/src/components/Card.tsx/0.css
+```
+
+### Virtual Module Storage
+
+The plugin stores CSS content in an in-memory map:
+
+```ts
+// Virtual CSS modules: filename -> CSS content + source file
+const cssModules = new Map<string, { css: string; sourceFile: string }>();
+
+// Store module
+const cssModuleId = `virtual:styled-static/${normalizePath(id)}/${cssIndex++}.css`;
+cssModules.set(cssModuleId, { 
+  css: processedCss, 
+  sourceFile: id 
+});
+```
+
+**Why store sourceFile?** For proper chunk association in production builds (CSS is co-located with JS).
+
+### Virtual Module Resolution
+
+The plugin implements Vite's `resolveId` hook:
+
+```ts
+resolveId(id) {
+  // Handle virtual:styled-static/path/to/file.tsx/0.css
+  if (id.startsWith("virtual:styled-static/")) {
+    return "\0" + id; // \0 prefix = virtual module
+  }
+  return null;
+}
+```
+
+Vite's `\0` prefix marks the module as virtual (not on disk).
+
+### Virtual Module Loading
+
+The plugin implements Vite's `load` hook:
+
+```ts
+load(id) {
+  if (id.startsWith("\0virtual:styled-static/")) {
+    const basePath = id.slice("\0".length).replace(/\.(css|js)$/, ".css");
+    const data = cssModules.get(basePath);
+    const css = data?.css ?? "";
+
+    if (isDev) {
+      // Dev: return JS that injects CSS into DOM
+      return `
+        const id = ${JSON.stringify(basePath)};
+        const css = ${JSON.stringify(css)};
+        // ... DOM injection code ...
+      `;
+    }
+
+    // Production: return raw CSS for Vite's CSS pipeline
+    return css;
+  }
+  return null;
+}
+```
+
+See `/home/daytona/workspace/source/src/vite.ts:181-226` for full implementation.
+
+## CSS Output Modes
+
+The plugin supports two CSS output modes:
+
+### 1. Virtual Mode (Default for Apps)
+
+CSS is bundled as virtual modules into Vite's single CSS file:
+
+```ts
+actualCssOutput = "virtual";
+
+// In load() hook:
+if (actualCssOutput === "virtual") {
+  return css; // Vite bundles into single CSS file
+}
+```
+
+**Output structure:**
+
+```
+dist/
+  assets/
+    index-abc123.js
+    index-abc123.css  ← All CSS bundled together
+```
+
+**Benefits:**
+- Simple output structure
+- Vite handles deduplication
+- Single HTTP request for all CSS
+
+### 2. File Mode (Default for Libraries)
+
+CSS is emitted as separate files co-located with JS:
+
+```ts
+if (config.build?.lib) {
+  actualCssOutput = "file";
+}
+
+// In generateBundle() hook:
+for (const [fileName, chunk] of Object.entries(bundle)) {
+  if (chunk.type !== "chunk") continue;
+
+  // Collect CSS for all modules in this chunk
+  let aggregatedCss = "";
+  for (const moduleId of chunk.moduleIds) {
+    const cssEntries = cssBySource.get(moduleId);
+    if (cssEntries) {
+      for (const css of cssEntries) {
+        aggregatedCss += css + "\n";
+      }
+    }
+  }
+
+  // Emit CSS file with same path as JS chunk
+  const cssFileName = fileName.replace(/\.js$/, ".css");
+  this.emitFile({
+    type: "asset",
+    fileName: cssFileName,
+    source: aggregatedCss.trim(),
+  });
+
+  // Rewrite chunk code to import relative CSS
+  chunk.code = rewriteCssImports(chunk.code, cssFileName);
+}
+```
+
+See `/home/daytona/workspace/source/src/vite.ts:549-596` for full implementation.
+
+**Output structure:**
+
+```
+dist/
+  components/
+    Button.js      ← import "./Button.css"
+    Button.css     ← Button-specific styles
+    Card.js        ← import "./Card.css"
+    Card.css       ← Card-specific styles
+```
+
+**Benefits:**
+- CSS tree-shaking (only import what you use)
+- Better for component libraries
+- Consuming apps bundle only needed CSS
+
+## Native CSS Features
+
+### Zero Dependencies
+
+The plugin uses **zero dependencies** for CSS processing:
+
+```ts
+/**
+ * ## Zero Dependencies
+ *
+ * This plugin has NO direct dependencies! It uses:
+ * - Vite's built-in parser (via Rollup's acorn)
+ * - Native CSS nesting (Chrome 112+, Safari 16.5+, Firefox 117+, Edge 112+)
+ * - Vite's CSS pipeline for processing
+ */
+```
+
+See `/home/daytona/workspace/source/src/vite.ts:7-12` for documentation.
+
+### Native CSS Nesting
+
+All modern browsers support CSS nesting:
+
+```css
+.ss-card {
+  padding: 1rem;
+
+  /* Pseudo-classes */
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Child selectors */
+  & h2 {
+    margin: 0 0 0.5rem;
+  }
+
+  /* Media queries */
+  @media (max-width: 640px) {
+    padding: 0.5rem;
+  }
+}
+```
+
+**No transformation needed** - CSS is passed directly to the browser.
+
+### Optional: Lightning CSS
+
+For faster CSS processing and older browser support:
+
+```bash
+npm install lightningcss
+```
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  css: { transformer: 'lightningcss' },
+  plugins: [styledStatic(), react()],
+});
+```
+
+Lightning CSS provides:
+- Faster CSS parsing and minification
+- Automatic vendor prefixes
+- CSS nesting polyfill for older browsers
+- CSS module composition
+
+See `/home/daytona/workspace/source/src/vite.ts:14-23` for documentation.
+
+## HMR Support
+
+### Hot Module Replacement
+
+The plugin implements Vite's `handleHotUpdate` hook:
+
+```ts
+handleHotUpdate({ file, server }) {
+  if (/\.[tj]sx?$/.test(file)) {
+    const normalizedPath = normalizePath(file);
+    
+    // Invalidate all virtual CSS modules from this source file
+    for (const [moduleId] of cssModules) {
+      if (moduleId.includes(normalizedPath + "/")) {
+        const mod = server.moduleGraph.getModuleById(`\0${moduleId}`);
+        if (mod) {
+          server.moduleGraph.invalidateModule(mod);
+        }
+      }
+    }
+  }
+}
+```
+
+See `/home/daytona/workspace/source/src/vite.ts:230-248` for full implementation.
+
+**What happens on file change:**
+1. Plugin re-runs `transform()` hook
+2. New CSS content is extracted
+3. Virtual modules are invalidated
+4. Vite triggers HMR update
+5. New CSS is injected into DOM (dev) or re-bundled (build)
+
+### Dev Mode: DOM Injection
+
+In dev mode, CSS changes are instantly reflected:
+
+```js
+// Remove existing style
+const existing = document.querySelector(`style[data-ss-id="${id}"]`);
+if (existing) existing.remove();
+
+// Inject new style
+const style = document.createElement('style');
+style.setAttribute('data-ss-id', id);
+style.textContent = css;
+document.head.appendChild(style);
+
+// HMR support
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
+```
+
+**No page reload needed** - CSS updates in real-time.
+
+## Memory Management
+
+The plugin cleans up stale CSS modules:
+
+```ts
+// Clean up stale CSS modules from previous transforms of this file.
+// Prevents unbounded memory growth during long dev sessions with HMR.
+const normalizedId = normalizePath(id);
+for (const key of cssModules.keys()) {
+  if (key.includes(normalizedId + "/")) {
+    cssModules.delete(key);
+  }
+}
+```
+
+See `/home/daytona/workspace/source/src/vite.ts:347-355` for implementation.
+
+**Why needed?** Each HMR update creates new virtual modules. Without cleanup, memory usage would grow indefinitely.
+
+## Next Steps
+
+- Learn about [How It Works](/concepts/how-it-works) - complete transformation pipeline
+- Learn about [Zero Runtime](/concepts/zero-runtime) - minimal runtime details

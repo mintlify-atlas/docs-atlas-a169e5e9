@@ -1,0 +1,294 @@
+---
+title: "Installation"
+description: "Install and configure styled-static in your React 19+ project with Vite"
+---
+
+## Prerequisites
+
+Before installing styled-static, ensure you have:
+
+<CardGroup cols={2}>
+  <Card title="React 19+" icon="react">
+    styled-static requires React 19 or later for automatic ref forwarding
+  </Card>
+  <Card title="Vite" icon="bolt">
+    Vite 5.0+ is required for the build-time transformation
+  </Card>
+</CardGroup>
+
+<Warning>
+  styled-static is designed specifically for **Vite** and **React 19+**. It won't work with Webpack, Rollup, or earlier React versions.
+</Warning>
+
+## Install the Package
+
+Choose your preferred package manager and run the installation command:
+
+<CodeGroup>
+
+```bash npm
+npm install @alex.radulescu/styled-static
+```
+
+```bash yarn
+yarn add @alex.radulescu/styled-static
+```
+
+```bash pnpm
+pnpm add @alex.radulescu/styled-static
+```
+
+```bash bun
+bun add @alex.radulescu/styled-static
+```
+
+</CodeGroup>
+
+## Configure the Vite Plugin
+
+Add the styled-static plugin to your `vite.config.ts` file. The plugin must be placed **before** the React plugin in the plugins array.
+
+<CodeGroup>
+
+```ts vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig({
+  plugins: [
+    styledStatic(), // Must be before react()
+    react(),
+  ],
+});
+```
+
+```ts vite.config.ts (with options)
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig({
+  plugins: [
+    styledStatic({
+      classPrefix: 'my-app', // Custom class prefix (default: 'ss')
+      cssOutput: 'auto',     // 'auto' | 'virtual' | 'file'
+    }),
+    react(),
+  ],
+});
+```
+
+</CodeGroup>
+
+<Note>
+  **Plugin Order Matters** — The styled-static plugin must come **before** the React plugin. This ensures proper transformation of styled components.
+</Note>
+
+## Optional: Lightning CSS
+
+For better performance and automatic vendor prefixes, install Lightning CSS:
+
+<Steps>
+  <Step title="Install Lightning CSS">
+    Add Lightning CSS to your project:
+
+    <CodeGroup>
+
+    ```bash npm
+    npm install lightningcss
+    ```
+
+    ```bash yarn
+    yarn add lightningcss
+    ```
+
+    ```bash pnpm
+    pnpm add lightningcss
+    ```
+
+    ```bash bun
+    bun add lightningcss
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Enable in Vite config">
+    Update your `vite.config.ts` to use Lightning CSS:
+
+    ```ts vite.config.ts
+    import { defineConfig } from 'vite';
+    import react from '@vitejs/plugin-react';
+    import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+    export default defineConfig({
+      css: {
+        transformer: 'lightningcss', // Enable Lightning CSS
+      },
+      plugins: [
+        styledStatic(),
+        react(),
+      ],
+    });
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+  **Lightning CSS Benefits:**
+  - Automatic vendor prefixes for better browser compatibility
+  - Faster CSS processing than PostCSS
+  - Better minification and smaller bundle sizes
+</Tip>
+
+## Configuration Options
+
+The styled-static plugin accepts the following options:
+
+<ParamField path="classPrefix" type="string" default="'ss'">
+  Prefix for generated class names. Useful for avoiding conflicts in microfrontends or component libraries.
+
+  ```ts
+  styledStatic({ classPrefix: 'my-app' })
+  // Generates: .my-app-abc123
+  ```
+</ParamField>
+
+<ParamField path="cssOutput" type="'auto' | 'virtual' | 'file'" default="'auto'">
+  Controls how CSS is output:
+  
+  - `'auto'` — Uses `'file'` for library builds (`build.lib` set), `'virtual'` for apps
+  - `'virtual'` — CSS as virtual modules (Vite bundles into single file)
+  - `'file'` — CSS as separate files co-located with JS (enables tree-shaking for libraries)
+
+  ```ts
+  styledStatic({ cssOutput: 'file' }) // For library builds
+  ```
+</ParamField>
+
+<ParamField path="debug" type="boolean" default="false">
+  Enable debug logging. Set to `true` or use `DEBUG_STYLED_STATIC=true` env var.
+  
+  <Warning>
+    Debug logs expose file paths and internal state. Disable in production.
+  </Warning>
+</ParamField>
+
+## Verify Installation
+
+Create a simple test component to verify everything is working:
+
+<Steps>
+  <Step title="Create a test component">
+    Create a new file `src/Test.tsx`:
+
+    ```tsx src/Test.tsx
+    import { styled } from '@alex.radulescu/styled-static';
+
+    const TestButton = styled.button`
+      padding: 0.5rem 1rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+
+      &:hover {
+        background: #2563eb;
+      }
+    `;
+
+    export function Test() {
+      return <TestButton>Hello styled-static!</TestButton>;
+    }
+    ```
+  </Step>
+
+  <Step title="Import and render">
+    Import the test component in your app:
+
+    ```tsx App.tsx
+    import { Test } from './Test';
+
+    function App() {
+      return (
+        <div>
+          <Test />
+        </div>
+      );
+    }
+
+    export default App;
+    ```
+  </Step>
+
+  <Step title="Start the dev server">
+    Run your Vite dev server:
+
+    ```bash
+    npm run dev
+    ```
+
+    You should see a blue button with hover effects. If you inspect the element, you'll see a scoped class like `ss-abc123`.
+  </Step>
+</Steps>
+
+<Check>
+  **Installation complete!** You're ready to start using styled-static. Continue to the [Quick Start](/quickstart) guide to learn more.
+</Check>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion icon="circle-exclamation" title="Error: 'styled' was not transformed at build time">
+    This error means the Vite plugin isn't configured correctly. Check that:
+    
+    1. The styled-static plugin is in your `vite.config.ts`
+    2. It's placed **before** the React plugin
+    3. You're importing from the correct package: `@alex.radulescu/styled-static`
+  </Accordion>
+
+  <Accordion icon="circle-exclamation" title="Storybook: 'This package is ESM only'">
+    If using styled-static with Storybook, add it to `optimizeDeps.include`:
+
+    ```ts .storybook/main.ts
+    export default {
+      viteFinal: async (config) => {
+        config.optimizeDeps = config.optimizeDeps || {};
+        config.optimizeDeps.include = [
+          ...(config.optimizeDeps.include || []),
+          '@alex.radulescu/styled-static',
+        ];
+        return config;
+      },
+    };
+    ```
+  </Accordion>
+
+  <Accordion icon="circle-exclamation" title="Type errors with React 19">
+    Ensure you have React 19+ installed:
+
+    ```bash
+    npm install react@^19.0.0 react-dom@^19.0.0
+    npm install -D @types/react@^19.0.0 @types/react-dom@^19.0.0
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Build your first styled component with a complete example
+  </Card>
+  <Card title="Core API" icon="code" href="/api/styled">
+    Learn about the styled API and all its features
+  </Card>
+  <Card title="TypeScript Support" icon="code" href="/advanced/typescript">
+    Explore TypeScript features and type inference
+  </Card>
+  <Card title="Configuration" icon="gear" href="/advanced/configuration">
+    Deep dive into plugin configuration options
+  </Card>
+</CardGroup>

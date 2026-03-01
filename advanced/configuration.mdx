@@ -1,0 +1,405 @@
+---
+title: "Configuration"
+description: "Configure the styled-static Vite plugin for optimal performance and developer experience"
+---
+
+# Configuration
+
+The styled-static Vite plugin accepts several configuration options to customize its behavior.
+
+## Basic Setup
+
+In your `vite.config.ts`:
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig({
+  plugins: [
+    styledStatic({
+      // Configuration options
+    }),
+    react(),
+  ],
+});
+```
+
+<Note>
+  The `styledStatic()` plugin must be placed **before** the `react()` plugin in the plugins array.
+</Note>
+
+## Configuration Options
+
+### `classPrefix`
+
+<ParamField path="classPrefix" type="string" default="'ss'">
+  Prefix for generated CSS class names.
+</ParamField>
+
+Customize the prefix used for all generated class names:
+
+```ts
+styledStatic({
+  classPrefix: 'my-app'
+})
+```
+
+Generated classes will use your prefix:
+
+```tsx
+// With default 'ss' prefix
+const Button = styled.button`padding: 1rem;`;
+// Generates: .ss-abc123 { padding: 1rem; }
+
+// With custom 'my-app' prefix
+const Button = styled.button`padding: 1rem;`;
+// Generates: .my-app-abc123 { padding: 1rem; }
+```
+
+**Use Cases:**
+- **Multi-app projects**: Avoid class name collisions between apps
+- **White-label apps**: Distinguish different themed versions
+- **Debugging**: Identify which system generated specific classes
+- **Micro-frontends**: Namespace styles per micro-frontend
+
+### `cssOutput`
+
+<ParamField path="cssOutput" type="'auto' | 'virtual' | 'file'" default="'auto'">
+  Controls how CSS is output during the build process.
+</ParamField>
+
+#### Output Modes
+
+**`auto` (default)**: Automatically selects the best mode:
+- Library builds (`build.lib` is set) → uses `file` mode
+- Application builds → uses `virtual` mode
+
+**`virtual`**: CSS is bundled into virtual modules
+- Best for applications
+- Vite bundles CSS into a single file
+- Smaller bundle overhead
+- Less HTTP requests
+
+**`file`**: CSS is emitted as separate files co-located with JS
+- Best for component libraries
+- Enables tree-shaking at the CSS level
+- Consumers only import CSS they use
+- Better for library distribution
+
+#### Examples
+
+```ts
+// Application build (single CSS bundle)
+styledStatic({
+  cssOutput: 'virtual'
+})
+
+// Library build (tree-shakeable CSS)
+styledStatic({
+  cssOutput: 'file'
+})
+
+// Let styled-static decide (recommended)
+styledStatic({
+  cssOutput: 'auto'
+})
+```
+
+#### Build Output Comparison
+
+**Virtual Mode** (Application):
+```
+dist/
+├── index.html
+├── assets/
+│   ├── index-a1b2c3.js
+│   └── index-a1b2c3.css  ← All styles in one file
+```
+
+**File Mode** (Library):
+```
+dist/
+├── index.js
+├── Button.js
+├── Button.css  ← Co-located with component
+├── Card.js
+└── Card.css    ← Co-located with component
+```
+
+### `debug`
+
+<ParamField path="debug" type="boolean" default="false">
+  Enable detailed logging for debugging the plugin transformation process.
+</ParamField>
+
+```ts
+styledStatic({
+  debug: true
+})
+```
+
+Alternatively, use the environment variable:
+
+```bash
+DEBUG_STYLED_STATIC=true npm run dev
+```
+
+**Debug Output Includes:**
+- Files being transformed
+- AST parsing information
+- Template literals found
+- Variant calls detected
+- CSS module generation
+- Output mode selection
+
+**Example Debug Output:**
+```
+[styled-static] CSS output mode: virtual (config: auto, isLib: false)
+[styled-static] Transforming: /src/components/Button.tsx
+[styled-static] AST parsed successfully, body length: 15
+[styled-static] Found imports: { styled: 'styled', css: 'css' }
+[styled-static] Found templates: 2
+[styled-static] Found variant calls: 0
+```
+
+<Warning>
+  **Security**: Debug mode exposes file paths and internal state. Never enable in production builds.
+</Warning>
+
+## Complete Configuration Example
+
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig({
+  plugins: [
+    styledStatic({
+      // Custom class prefix for namespacing
+      classPrefix: 'myapp',
+      
+      // Explicit CSS output mode
+      cssOutput: 'virtual',
+      
+      // Enable debug logging in development
+      debug: process.env.NODE_ENV === 'development',
+    }),
+    react(),
+  ],
+  
+  // Optional: Use Lightning CSS for faster CSS processing
+  css: {
+    transformer: 'lightningcss',
+  },
+});
+```
+
+## Plugin Order
+
+The plugin uses `enforce: 'post'` to run **after** the React plugin:
+
+```ts
+export default defineConfig({
+  plugins: [
+    styledStatic(), // Runs in 'post' phase
+    react(),        // Transforms JSX first
+  ],
+});
+```
+
+**Why Post-Phase?**
+1. React plugin transforms JSX to `React.createElement()` calls
+2. Vite's built-in parser can then parse the transformed code
+3. styled-static extracts CSS and generates components
+4. No need for a JSX-aware parser dependency
+
+**This enables support for all file types:**
+- `.js`, `.jsx` - JavaScript with JSX
+- `.ts`, `.tsx` - TypeScript with JSX  
+- `.mjs`, `.cjs` - ES modules and CommonJS
+- `.mts`, `.cts` - TypeScript modules
+
+## CSS Processing
+
+### Native CSS Nesting
+
+By default, styled-static uses native CSS nesting (supported in all modern browsers):
+
+```tsx
+const Card = styled.div`
+  padding: 1rem;
+  
+  & > h2 {
+    margin-top: 0;
+  }
+  
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+`;
+```
+
+**Browser Support:**
+- Chrome 112+
+- Safari 16.5+
+- Firefox 117+
+- Edge 112+
+
+### Lightning CSS (Optional)
+
+For faster CSS processing and better browser compatibility, install Lightning CSS:
+
+```bash
+npm install -D lightningcss
+```
+
+Enable in your Vite config:
+
+```ts
+export default defineConfig({
+  plugins: [styledStatic(), react()],
+  css: {
+    transformer: 'lightningcss',
+  },
+});
+```
+
+**Benefits:**
+- Faster CSS transformation
+- Automatic vendor prefixing
+- Advanced CSS minification
+- Better browser compatibility
+
+## Environment-Specific Configuration
+
+### Development vs Production
+
+```ts
+import { defineConfig } from 'vite';
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig(({ command, mode }) => {
+  const isDev = command === 'serve';
+  
+  return {
+    plugins: [
+      styledStatic({
+        // Readable class names in dev, hashed in prod
+        debug: isDev,
+        
+        // Explicit mode per environment
+        cssOutput: isDev ? 'virtual' : 'auto',
+      }),
+      react(),
+    ],
+  };
+});
+```
+
+### Class Name Generation
+
+Class names are generated differently based on environment:
+
+**Development Mode:**
+```tsx
+// Button.tsx
+const Button = styled.button`padding: 1rem;`;
+
+// Generated class: .ss-Button-Button (readable for debugging)
+// Format: {prefix}-{variableName}-{fileName}
+```
+
+**Production Mode:**
+```tsx
+// Button.tsx
+const Button = styled.button`padding: 1rem;`;
+
+// Generated class: .ss-a1b2c3d4 (hashed for minimal size)
+// Format: {prefix}-{hash}
+// Uses 8-character hash (6 in dev) for lower collision probability
+```
+
+## Library Build Configuration
+
+When building a component library, configure Vite's `build.lib` option:
+
+```ts
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import { styledStatic } from '@alex.radulescu/styled-static/vite';
+
+export default defineConfig({
+  plugins: [
+    styledStatic({
+      cssOutput: 'file', // Enable tree-shakeable CSS
+    }),
+    react(),
+  ],
+  build: {
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      formats: ['es'],
+      fileName: 'index',
+    },
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+    },
+  },
+});
+```
+
+See [Library Builds](/advanced/library-builds) for more details.
+
+## TypeScript Integration
+
+The plugin works seamlessly with TypeScript. See [TypeScript](/advanced/typescript) for type safety details.
+
+## Troubleshooting
+
+### Plugin Not Transforming Code
+
+**Symptom**: Runtime error "styled was not transformed at build time"
+
+**Solutions**:
+1. Ensure plugin is in the correct position:
+   ```ts
+   plugins: [styledStatic(), react()] // ✅ styledStatic before react
+   ```
+
+2. Check file extensions are supported:
+   ```ts
+   // ✅ Supported
+   .js, .jsx, .ts, .tsx, .mjs, .cjs, .mts, .cts
+   ```
+
+3. Verify imports are correct:
+   ```ts
+   // ✅ Correct
+   import { styled } from '@alex.radulescu/styled-static';
+   
+   // ❌ Wrong package name
+   import { styled } from 'styled-static';
+   ```
+
+### CSS Not Loading
+
+**Check:**
+1. Virtual CSS modules are being imported (check browser Network tab)
+2. Plugin is running in post-phase (check with `debug: true`)
+3. CSS output mode is appropriate for your build type
+
+### Class Names Colliding
+
+**Solutions**:
+1. Use a unique `classPrefix`
+2. Check for duplicate component names in the same file
+3. Enable `debug` mode to see generated class names
+
+## Related
+
+- [Library Builds](/advanced/library-builds) - Building component libraries
+- [TypeScript](/advanced/typescript) - Type safety and inference
+- [Troubleshooting](/troubleshooting) - Common issues and solutions

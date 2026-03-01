@@ -1,80 +1,437 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Quick Start"
+description: "Build your first styled component and learn the essentials in 5 minutes"
 ---
 
-## Get started in three steps
+## Your First Styled Component
 
-Get your documentation site running locally and make your first customization.
+Let's build a complete example from scratch. This guide assumes you've already [installed styled-static](/installation).
 
-### Step 1: Set up your local environment
+<Steps>
+  <Step title="Import styled">
+    Start by importing the `styled` function from styled-static:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```tsx Button.tsx
+    import { styled } from '@alex.radulescu/styled-static';
+    ```
+  </Step>
 
-### Step 2: Deploy your changes
+  <Step title="Create a styled component">
+    Use the `styled` API to create a Button component:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```tsx Button.tsx
+    import { styled } from '@alex.radulescu/styled-static';
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    const Button = styled.button`
+      padding: 0.5rem 1rem;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: background 0.2s;
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+      &:hover {
+        background: #2563eb;
+      }
 
-### Step 3: Go live
+      &:active {
+        transform: scale(0.98);
+      }
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    `;
+    ```
 
-## Next steps
+    <Note>
+      All CSS is extracted at build time. The `:hover`, `:active`, and `:disabled` styles use native CSS nesting.
+    </Note>
+  </Step>
 
-Now that you have your docs running, explore these key features:
+  <Step title="Use the component">
+    Use your styled component like any other React component:
 
-<CardGroup cols={2}>
+    ```tsx Button.tsx
+    export function Demo() {
+      return (
+        <div>
+          <Button onClick={() => alert('Clicked!')}>Click me</Button>
+          <Button disabled>Disabled</Button>
+        </div>
+      );
+    }
+    ```
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+    <Check>
+      **That's it!** Your component is fully styled with static CSS. No runtime overhead.
+    </Check>
+  </Step>
+</Steps>
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+## Extend Components
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+One of the most powerful features is component extension. Create variants by extending base components:
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
 
-</CardGroup>
+// Base button
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+`;
+
+// Primary variant (extends Button)
+const PrimaryButton = styled(Button)`
+  background: #3b82f6;
+  color: white;
+
+  &:hover {
+    background: #2563eb;
+  }
+`;
+
+// Danger variant (extends Button)
+const DangerButton = styled(Button)`
+  background: #ef4444;
+  color: white;
+
+  &:hover {
+    background: #dc2626;
+  }
+`;
+
+// Usage
+export function App() {
+  return (
+    <>
+      <Button>Base</Button>
+      <PrimaryButton>Primary</PrimaryButton>
+      <DangerButton>Danger</DangerButton>
+    </>
+  );
+}
+```
+
+<Tip>
+  **CSS Cascade Order** — When components are extended, classes are ordered correctly: base styles first, extension styles second, user `className` last.
+</Tip>
+
+## Add Conditional Styles
+
+Use the `css` helper for conditional styling:
+
+```tsx
+import { styled, css } from '@alex.radulescu/styled-static';
+
+// Base button
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: #e5e7eb;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+`;
+
+// Active state class
+const activeClass = css`
+  background: #3b82f6;
+  color: white;
+  outline: 2px solid #93c5fd;
+`;
+
+// Component with conditional styling
+export function ToggleButton() {
+  const [active, setActive] = useState(false);
+
+  return (
+    <Button
+      className={active ? activeClass : ''}
+      onClick={() => setActive(!active)}
+    >
+      {active ? 'Active' : 'Inactive'}
+    </Button>
+  );
+}
+```
+
+<Info>
+  The `css` helper generates a scoped class name that you can apply conditionally. All CSS is still extracted at build time.
+</Info>
+
+## Add Global Styles
+
+Every app needs some global styles. Use `createGlobalStyle` to define them:
+
+```tsx App.tsx
+import { createGlobalStyle } from '@alex.radulescu/styled-static';
+import { Button } from './Button';
+
+const GlobalStyle = createGlobalStyle`
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #f9fafb;
+    color: #111827;
+  }
+
+  :root {
+    --color-primary: #3b82f6;
+    --color-danger: #ef4444;
+  }
+`;
+
+export function App() {
+  return (
+    <>
+      <GlobalStyle />
+      <div className="app">
+        <h1>My App</h1>
+        <Button>Click me</Button>
+      </div>
+    </>
+  );
+}
+```
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  `GlobalStyle` renders nothing — it only injects CSS at build time. Render it once at your app root.
 </Note>
+
+## Create Type-Safe Variants
+
+For components with multiple variants, use `styledVariants` for type safety:
+
+```tsx
+import { styledVariants, css } from '@alex.radulescu/styled-static';
+
+const Button = styledVariants({
+  component: 'button',
+  css: css`
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+  `,
+  variants: {
+    color: {
+      primary: css`
+        background: #3b82f6;
+        color: white;
+      `,
+      danger: css`
+        background: #ef4444;
+        color: white;
+      `,
+      ghost: css`
+        background: transparent;
+        border: 1px solid #e5e7eb;
+      `,
+    },
+    size: {
+      sm: css`
+        font-size: 0.875rem;
+        padding: 0.25rem 0.75rem;
+      `,
+      md: css`
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+      `,
+      lg: css`
+        font-size: 1.125rem;
+        padding: 0.75rem 1.5rem;
+      `,
+    },
+  },
+  defaultVariants: {
+    color: 'primary',
+    size: 'md',
+  },
+});
+
+// Usage with full type safety
+export function Demo() {
+  return (
+    <>
+      <Button>Default (primary + md)</Button>
+      <Button color="danger" size="lg">Large Danger</Button>
+      <Button color="ghost" size="sm">Small Ghost</Button>
+    </>
+  );
+}
+```
+
+<Tip>
+  Wrap CSS in `css` template literals to get syntax highlighting from the [styled-components VSCode extension](https://marketplace.visualstudio.com/items?itemName=styled-components.vscode-styled-components).
+</Tip>
+
+## Add Animations
+
+Create scoped animations with `keyframes`:
+
+```tsx
+import { styled, keyframes } from '@alex.radulescu/styled-static';
+
+const spin = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+const Spinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
+`;
+
+export function LoadingSpinner() {
+  return <Spinner />;
+}
+```
+
+<Info>
+  Animation names are automatically scoped (hashed) to avoid conflicts between components.
+</Info>
+
+## Complete Example
+
+Here's a complete example putting everything together:
+
+```tsx App.tsx
+import { useState } from 'react';
+import {
+  styled,
+  css,
+  createGlobalStyle,
+  styledVariants,
+  keyframes,
+} from '@alex.radulescu/styled-static';
+
+// Global styles
+const GlobalStyle = createGlobalStyle`
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    background: #f9fafb;
+  }
+`;
+
+// Animation
+const fadeIn = keyframes`
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+`;
+
+// Container
+const Container = styled.div`
+  max-width: 600px;
+  margin: 2rem auto;
+  padding: 2rem;
+  animation: ${fadeIn} 0.3s ease-out;
+`;
+
+// Type-safe button with variants
+const Button = styledVariants({
+  component: 'button',
+  css: css`
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  `,
+  variants: {
+    variant: {
+      primary: css`background: #3b82f6; color: white;`,
+      danger: css`background: #ef4444; color: white;`,
+    },
+  },
+});
+
+// Active state
+const activeClass = css`
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+`;
+
+export function App() {
+  const [active, setActive] = useState(false);
+
+  return (
+    <>
+      <GlobalStyle />
+      <Container>
+        <h1>styled-static Demo</h1>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button variant="primary" onClick={() => setActive(!active)}>
+            Toggle Active
+          </Button>
+          <Button
+            variant="danger"
+            className={active ? activeClass : ''}
+          >
+            {active ? 'Active' : 'Inactive'}
+          </Button>
+        </div>
+      </Container>
+    </>
+  );
+}
+```
+
+<Check>
+  **You're ready!** You now know the core concepts of styled-static. Explore the [API documentation](/api/styled) to learn more.
+</Check>
+
+## What's Happening Under the Hood?
+
+When you build your app, the Vite plugin:
+
+1. **Extracts CSS** — All template literals are parsed and CSS is extracted
+2. **Generates class names** — Each styled component gets a unique, scoped class
+3. **Creates inline components** — Components are generated as inline functions (no factory)
+4. **Bundles CSS** — CSS is bundled into static files via Vite's pipeline
+
+The result? A tiny runtime (~45 bytes) and all your CSS in static files.
+
+<Card title="Learn More" icon="lightbulb" href="/concepts/how-it-works">
+  Read about the build-time transformation in detail
+</Card>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Styling Components" icon="palette" href="/guides/styling-components">
+    Learn advanced styling techniques and patterns
+  </Card>
+  <Card title="Variants" icon="sliders" href="/guides/variants">
+    Master type-safe variants with styledVariants and cssVariants
+  </Card>
+  <Card title="Theming" icon="moon" href="/guides/theming">
+    Add dark mode and custom themes to your app
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/styled">
+    Explore the complete API documentation
+  </Card>
+</CardGroup>

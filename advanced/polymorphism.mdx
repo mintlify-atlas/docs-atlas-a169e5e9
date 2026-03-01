@@ -1,0 +1,322 @@
+---
+title: "Polymorphism with withComponent"
+description: "Use withComponent to create components that render one element with another's styles"
+---
+
+# Polymorphism with withComponent
+
+The `withComponent` function allows you to create a new component that renders a different element or component while preserving the original component's styles. This is a build-time alternative to the runtime `as` prop pattern.
+
+## Basic Usage
+
+### HTML Elements
+
+Create a component that renders a different HTML element:
+
+```tsx
+import { styled, withComponent } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 1rem 2rem;
+  background: blue;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: darkblue;
+  }
+`;
+
+// Create an anchor that looks like a Button
+const ButtonLink = withComponent('a', Button);
+
+// Usage
+<ButtonLink href="/about">About Us</ButtonLink>
+```
+
+### React Components
+
+Use `withComponent` with any React component that accepts a `className` prop:
+
+```tsx
+import { Link } from 'react-router-dom';
+import { styled, withComponent } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 1rem 2rem;
+  background: blue;
+  color: white;
+`;
+
+// Create a Link that looks like a Button
+const LinkButton = withComponent(Link, Button);
+
+// Usage - gets all Link props + Button styles
+<LinkButton to="/home">Go Home</LinkButton>
+```
+
+## How It Works
+
+At build time, the Vite plugin transforms `withComponent` calls into optimized component factories:
+
+```tsx
+// Source
+const LinkButton = withComponent(Link, Button);
+
+// Transformed (simplified)
+const LinkButton = Object.assign(
+  (props) => createElement(Link, {
+    ...props,
+    className: m(Button.className, props.className)
+  }),
+  { className: Button.className }
+);
+```
+
+### Key Features
+
+- **Zero Runtime Overhead**: Component creation happens at build time
+- **Type Safety**: Full TypeScript inference for component props
+- **Style Preservation**: Inherits all styles from the source component
+- **Composable**: Can be extended further with `styled()`
+- **className Support**: User-provided `className` props are merged correctly
+
+## Advanced Patterns
+
+### Extending Polymorphic Components
+
+You can extend polymorphic components with additional styles:
+
+```tsx
+const Button = styled.button`
+  padding: 1rem 2rem;
+  background: blue;
+  color: white;
+`;
+
+const LinkButton = withComponent(Link, Button);
+
+// Add more styles to the polymorphic component
+const PrimaryLinkButton = styled(LinkButton)`
+  font-weight: bold;
+  text-transform: uppercase;
+`;
+
+<PrimaryLinkButton to="/primary">Primary Action</PrimaryLinkButton>
+```
+
+### Multiple Polymorphic Variants
+
+Create multiple variants of the same component for different use cases:
+
+```tsx
+const BaseButton = styled.button`
+  padding: 1rem 2rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+`;
+
+// Different element types with same styles
+const ButtonAsLink = withComponent('a', BaseButton);
+const ButtonAsSpan = withComponent('span', BaseButton);
+const ButtonAsRouterLink = withComponent(Link, BaseButton);
+
+// Use the right one for each context
+<BaseButton onClick={handleClick}>Button</BaseButton>
+<ButtonAsLink href="/external">External Link</ButtonAsLink>
+<ButtonAsRouterLink to="/internal">Internal Link</ButtonAsRouterLink>
+<ButtonAsSpan role="button" tabIndex={0}>Span Button</ButtonAsSpan>
+```
+
+### Conditional Polymorphism
+
+Choose components dynamically based on props:
+
+```tsx
+import { styled, withComponent } from '@alex.radulescu/styled-static';
+import { Link } from 'react-router-dom';
+
+const Button = styled.button`
+  padding: 1rem 2rem;
+  background: blue;
+  color: white;
+`;
+
+const LinkButton = withComponent(Link, Button);
+const AnchorButton = withComponent('a', Button);
+
+interface ActionButtonProps {
+  href?: string;
+  to?: string;
+  onClick?: () => void;
+  children: React.ReactNode;
+}
+
+function ActionButton({ href, to, onClick, children }: ActionButtonProps) {
+  if (to) {
+    return <LinkButton to={to}>{children}</LinkButton>;
+  }
+  if (href) {
+    return <AnchorButton href={href}>{children}</AnchorButton>;
+  }
+  return <Button onClick={onClick}>{children}</Button>;
+}
+
+// Usage
+<ActionButton to="/internal">Router Link</ActionButton>
+<ActionButton href="https://example.com">External Link</ActionButton>
+<ActionButton onClick={() => alert('clicked')}>Button</ActionButton>
+```
+
+## Type Safety
+
+The resulting component is fully type-safe and inherits all props from the target component:
+
+```tsx
+import { Link } from 'react-router-dom';
+import { styled, withComponent } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 1rem;
+  background: blue;
+`;
+
+const LinkButton = withComponent(Link, Button);
+
+// ✅ TypeScript knows about Link props
+<LinkButton to="/path" state={{ fromPage: 'home' }}>
+  Typed Link
+</LinkButton>
+
+// ❌ TypeScript error: 'href' is not a prop of Link
+<LinkButton href="/path">Error</LinkButton>
+```
+
+## Comparison with Runtime `as` Prop
+
+Many styled-component libraries use a runtime `as` prop for polymorphism:
+
+```tsx
+// Runtime approach (not supported in styled-static)
+<Button as="a" href="/link">Link styled as button</Button>
+<Button as={Link} to="/path">Router link</Button>
+```
+
+Styled-static uses `withComponent` for build-time polymorphism instead:
+
+| Feature | Runtime `as` | Build-time `withComponent` |
+|---------|-------------|---------------------------|
+| Performance | Runtime overhead | Zero runtime cost |
+| Type Safety | Often loses type inference | Full type safety |
+| Bundle Size | Included in bundle | Tree-shakeable |
+| Flexibility | Change at runtime | Defined at build time |
+| API | Prop-based | Function-based |
+
+## Best Practices
+
+### 1. Create Semantic Variants
+
+Name polymorphic components based on their semantic purpose:
+
+```tsx
+// ✅ Good - semantic names
+const ButtonAsLink = withComponent('a', Button);
+const ButtonAsRouterLink = withComponent(Link, Button);
+
+// ❌ Avoid - unclear names
+const Button2 = withComponent('a', Button);
+const Comp = withComponent(Link, Button);
+```
+
+### 2. Colocate Related Variants
+
+Keep polymorphic variants near their base component:
+
+```tsx
+// Button.tsx
+export const Button = styled.button`/* styles */`;
+export const ButtonAsLink = withComponent('a', Button);
+export const ButtonAsRouterLink = withComponent(Link, Button);
+```
+
+### 3. Document Prop Requirements
+
+Clearly document which props are needed for each variant:
+
+```tsx
+/**
+ * Button component with multiple variants:
+ * - Button: onClick handler
+ * - ButtonAsLink: href prop
+ * - ButtonAsRouterLink: to prop
+ */
+export const Button = styled.button`/* styles */`;
+export const ButtonAsLink = withComponent('a', Button);
+export const ButtonAsRouterLink = withComponent(Link, Button);
+```
+
+### 4. Limit Polymorphic Depth
+
+Avoid deeply nested polymorphic compositions:
+
+```tsx
+// ❌ Avoid excessive composition
+const A = styled.button`/* ... */`;
+const B = withComponent('a', A);
+const C = styled(B)`/* ... */`;
+const D = withComponent(Link, C);
+
+// ✅ Better - keep it simple
+const Button = styled.button`/* ... */`;
+const LinkButton = withComponent(Link, Button);
+```
+
+## Troubleshooting
+
+### Component Not Receiving Styles
+
+Ensure the target component accepts and applies a `className` prop:
+
+```tsx
+// ❌ Component ignores className
+const CustomComponent = (props) => <div>No className</div>;
+
+// ✅ Component uses className
+const CustomComponent = ({ className, ...props }) => (
+  <div className={className} {...props} />
+);
+
+const StyledCustom = withComponent(CustomComponent, Button);
+```
+
+### Type Errors with Custom Components
+
+Make sure your component is properly typed with React.ComponentType:
+
+```tsx
+import type { ComponentType } from 'react';
+
+interface CustomProps {
+  className?: string;
+  customProp: string;
+}
+
+const CustomComponent: ComponentType<CustomProps> = ({ className, customProp }) => (
+  <div className={className}>{customProp}</div>
+);
+
+const StyledCustom = withComponent(CustomComponent, Button);
+
+// Now TypeScript knows about customProp
+<StyledCustom customProp="value" />
+```
+
+## Related
+
+- [Configuration](/advanced/configuration) - Configure the Vite plugin
+- [TypeScript](/advanced/typescript) - Type safety and inference
+- [styled API](/api/styled) - Using `.className` for manual composition

@@ -1,0 +1,270 @@
+---
+title: cx
+description: Utility for conditionally joining class names
+---
+
+A minimal utility (~40 bytes) for conditionally joining class names. A lightweight alternative to `clsx` or `classnames`.
+
+## Function Signature
+
+```typescript
+function cx(
+  ...args: (string | false | null | undefined)[]
+): string;
+```
+
+## Parameters
+
+<ParamField path="args" type="(string | false | null | undefined)[]" required>
+  Class names to join. Falsy values (`false`, `null`, `undefined`) are automatically filtered out
+</ParamField>
+
+## Returns
+
+<ResponseField name="className" type="string">
+  Space-separated class names string
+</ResponseField>
+
+## Usage
+
+### Basic Joining
+
+Join multiple class names:
+
+```tsx
+import { cx } from '@alex.radulescu/styled-static';
+
+cx('base', 'active')  // → 'base active'
+cx('a', 'b', 'c')     // → 'a b c'
+```
+
+### Conditional Classes
+
+Use boolean conditions to toggle classes:
+
+```tsx
+const Button = styled.button`...`;
+
+<Button className={cx(
+  'btn',
+  isActive && 'active',
+  isDisabled && 'disabled'
+)}>
+  Click me
+</Button>
+
+// When isActive=true, isDisabled=false:
+// → className="btn active"
+```
+
+### With css Helper
+
+Combine with the `css` helper for scoped styles:
+
+```tsx
+import { css, cx } from '@alex.radulescu/styled-static';
+
+const activeClass = css`
+  outline: 2px solid blue;
+  background: #eff6ff;
+`;
+
+const errorClass = css`
+  border: 1px solid red;
+`;
+
+<Button className={cx(
+  isActive && activeClass,
+  hasError && errorClass
+)}>
+  Dynamic styling
+</Button>
+```
+
+### Falsy Value Filtering
+
+All falsy values are automatically filtered:
+
+```tsx
+cx('a', null, 'b')           // → 'a b'
+cx('a', undefined, 'b')      // → 'a b'
+cx('a', false, 'b')          // → 'a b'
+cx('a', '', 'b')             // → 'a b' (empty strings filtered)
+```
+
+### With Styled Components
+
+Mix styled component class names:
+
+```tsx
+const Button = styled.button`...`;
+const Card = styled.div`...`;
+
+<div className={cx(Button.className, Card.className, 'custom')}>
+  Combined styles
+</div>
+```
+
+## Real-World Examples
+
+### Form Input States
+
+Handle multiple input states:
+
+```tsx
+const Input = styled.input`...`;
+
+const focusClass = css`
+  outline: 2px solid blue;
+`;
+
+const errorClass = css`
+  border-color: red;
+`;
+
+function FormInput({ isFocused, hasError, isDisabled }) {
+  return (
+    <Input
+      className={cx(
+        isFocused && focusClass,
+        hasError && errorClass,
+        isDisabled && 'opacity-50'
+      )}
+    />
+  );
+}
+```
+
+### Navigation Links
+
+Style active navigation items:
+
+```tsx
+const NavLink = styled.a`
+  padding: 0.5rem 1rem;
+  color: #64748b;
+`;
+
+const activeClass = css`
+  color: #3b82f6;
+  font-weight: 600;
+`;
+
+function Nav({ currentPath }) {
+  return (
+    <nav>
+      <NavLink 
+        href="/home" 
+        className={cx(currentPath === '/home' && activeClass)}
+      >
+        Home
+      </NavLink>
+      <NavLink 
+        href="/about" 
+        className={cx(currentPath === '/about' && activeClass)}
+      >
+        About
+      </NavLink>
+    </nav>
+  );
+}
+```
+
+### Button Variants
+
+Create variant styles manually:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+`;
+
+const primaryClass = css`
+  background: blue;
+  color: white;
+`;
+
+const largeClass = css`
+  padding: 1rem 2rem;
+  font-size: 1.25rem;
+`;
+
+function VariantButton({ variant, size }) {
+  return (
+    <Button
+      className={cx(
+        variant === 'primary' && primaryClass,
+        size === 'large' && largeClass
+      )}
+    />
+  );
+}
+```
+
+### Responsive Classes
+
+Combine with Tailwind CSS utility classes:
+
+```tsx
+const Card = styled.div`
+  padding: 1rem;
+`;
+
+function ResponsiveCard({ isHighlighted }) {
+  return (
+    <Card
+      className={cx(
+        'rounded-lg',
+        'shadow-md',
+        'hover:shadow-lg',
+        'md:p-6',
+        'lg:p-8',
+        isHighlighted && 'ring-2 ring-blue-500'
+      )}
+    >
+      Content
+    </Card>
+  );
+}
+```
+
+## Implementation
+
+The entire implementation is ~40 bytes:
+
+```typescript
+export function cx(...args: (string | false | null | undefined)[]): string {
+  let result = "";
+  for (const a of args) {
+    if (a) result = result ? `${result} ${a}` : a;
+  }
+  return result;
+}
+```
+
+## Why Not clsx?
+
+The `cx` utility is intentionally minimal:
+
+- **Size**: ~40 bytes vs ~300+ bytes for `clsx`
+- **Simplicity**: Flat arguments only (no nested arrays/objects)
+- **Zero dependencies**: No external packages needed
+
+If you need nested arrays or object syntax, use `clsx` instead:
+
+```tsx
+// cx doesn't support:
+cx({ active: true, disabled: false })  // ❌
+cx(['a', 'b', ['c', 'd']])             // ❌
+
+// But clsx does:
+import clsx from 'clsx';
+clsx({ active: true, disabled: false })  // ✅
+clsx(['a', 'b', ['c', 'd']])             // ✅
+```
+
+## See Also
+
+- [css](/api/css) - Get a scoped class name
+- [styled](/api/styled) - Create styled components
+- [cssVariants](/api/css-variants) - Create variant functions that return class strings

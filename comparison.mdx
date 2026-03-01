@@ -1,0 +1,164 @@
+---
+title: "Comparison with Other Libraries"
+description: "How styled-static compares to Emotion, Linaria, Restyle, and Panda CSS"
+---
+
+## Overview
+
+styled-static is a near-zero-runtime CSS-in-JS library for React 19+ with Vite. Here's how it compares to other popular CSS-in-JS solutions.
+
+## Feature Comparison
+
+**Legend:** ✓ Yes | ◐ Partial | ✗ No
+
+<ResponseField name="Runtime Size" type="comparison">
+  | Library | Runtime Size |
+  |---------|-------------|
+  | **styled-static** | **~50 B** |
+  | Emotion | ~11 KB |
+  | Linaria | ~1.5 KB |
+  | Restyle | ~2.2 KB |
+  | Panda CSS | 0 B |
+</ResponseField>
+
+<ResponseField name="Dependencies" type="comparison">
+  | Library | Dependencies |
+  |---------|-------------|
+  | **styled-static** | **0** |
+  | Emotion | 5+ |
+  | Linaria | 10+ |
+  | Restyle | 0 |
+  | Panda CSS | 5+ |
+</ResponseField>
+
+## Full Comparison Table
+
+| Feature | styled-static | Emotion | Linaria | [Restyle](https://restyle.dev) | Panda CSS |
+|---------|---------------|---------|---------|--------|-----------||
+| **Runtime** | **~50 B** | ~11 KB | ~1.5 KB | ~2.2 KB | 0 B |
+| **Dependencies** | 0 | 5+ | 10+ | 0 | 5+ |
+| **React Version** | 19+ | 16+ | 16+ | 19+ | 16+ |
+| **Bundler** | Vite | Any | Many | Any | Any |
+| **`styled.el`** | ✓ | ✓ | ✓ | ✓ | ◐ |
+| **`styled(Comp)`** | ✓ | ✓ | ✓ | ✓ | ◐ |
+| **Variants** | ✓ | ◐ | ◐ | ◐ | ✓ |
+| **`css` helper** | ✓ | ✓ | ✓ | ✓ | ✓ |
+| **`css` inline prop** | ✗ | ✓ | ✗ | ✓ | ✓ |
+| **Runtime interpolation** | ✗ | ✓ | ✗ | ✓ | ✗ |
+| **Default variants** | ✓ | ✗ | ✗ | ✗ | ✓ |
+| **Compound variants** | ✓ | ✗ | ✗ | ✗ | ✓ |
+| **`.className` access** | ✓ | ✗ | ✗ | ✗ | ✗ |
+
+## Key Differences
+
+<AccordionGroup>
+  <Accordion title="styled-static vs Emotion">
+    ### styled-static Advantages
+    - **98% smaller runtime** (~50 B vs ~11 KB)
+    - Zero dependencies vs 5+ dependencies
+    - Static CSS extraction at build time
+    - Built-in variants API with default and compound variants
+    - Direct `.className` access for composition
+
+    ### Emotion Advantages
+    - Works with any bundler (not just Vite)
+    - Runtime interpolation for dynamic styles
+    - `css` prop for inline styling
+    - Supports React 16+ (not just 19+)
+
+    ### Best for
+    - **styled-static**: New React 19+ projects with Vite that prioritize performance and minimal bundle size
+    - **Emotion**: Projects needing runtime flexibility or supporting older React versions
+  </Accordion>
+
+  <Accordion title="styled-static vs Linaria">
+    ### styled-static Advantages
+    - **97% smaller runtime** (~50 B vs ~1.5 KB)
+    - Zero dependencies vs 10+ dependencies
+    - Simpler Vite-only integration
+    - Built-in variants API with defaults and compounds
+    - Direct `.className` access
+
+    ### Linaria Advantages
+    - Works with multiple bundlers (Webpack, Rollup, etc.)
+    - Supports React 16+
+    - More mature ecosystem
+
+    ### Best for
+    - **styled-static**: Greenfield Vite projects prioritizing simplicity and zero dependencies
+    - **Linaria**: Projects using other bundlers or requiring broader tooling support
+  </Accordion>
+
+  <Accordion title="styled-static vs Restyle">
+    ### styled-static Advantages
+    - **~96% smaller runtime** (~50 B vs ~2.2 KB)
+    - Built-in variants with defaults and compound variants
+    - Direct `.className` access for composition
+    - More familiar styled-components syntax
+
+    ### Restyle Advantages
+    - Runtime interpolation for dynamic styles
+    - `css` inline prop support
+    - Works with any bundler
+
+    ### Best for
+    - **styled-static**: Projects prioritizing minimal runtime and static extraction
+    - **Restyle**: Projects needing runtime flexibility with React 19+
+  </Accordion>
+
+  <Accordion title="styled-static vs Panda CSS">
+    ### styled-static Advantages
+    - More familiar styled-components API
+    - Simpler setup (no code generation step)
+    - Direct `.className` access
+    - Component extension via `styled(Component)`
+
+    ### Panda CSS Advantages
+    - **True zero runtime** (0 B vs ~50 B)
+    - More dependencies for additional features
+    - Utility-first approach option
+    - Works with React 16+
+
+    ### Best for
+    - **styled-static**: Teams familiar with styled-components wanting near-zero runtime
+    - **Panda CSS**: Teams wanting absolute zero runtime or utility-first styling
+  </Accordion>
+</AccordionGroup>
+
+## When to Choose styled-static
+
+Consider styled-static if you:
+
+<CardGroup cols={2}>
+  <Card title="Use Vite" icon="bolt">
+    Built specifically for Vite with deep integration
+  </Card>
+  
+  <Card title="Use React 19+" icon="react">
+    Takes advantage of automatic ref forwarding
+  </Card>
+  
+  <Card title="Want Zero Dependencies" icon="shield">
+    No external dependencies, minimal security surface
+  </Card>
+  
+  <Card title="Prioritize Performance" icon="gauge-high">
+    Near-zero runtime with static CSS extraction
+  </Card>
+</CardGroup>
+
+## Migration Considerations
+
+<Note>
+  If you're migrating from another CSS-in-JS library, see our [Migration Guide](/migration) for detailed instructions and code examples.
+</Note>
+
+<Warning>
+  styled-static is **Vite-only** and requires **React 19+**. If you need broader compatibility, consider Emotion or Linaria.
+</Warning>
+
+## Inspiration
+
+We take inspiration from the greats before us: [Emotion](https://emotion.sh), [styled-components](https://styled-components.com), [Linaria](https://linaria.dev), [Panda CSS](https://panda-css.com), [Pigment CSS](https://github.com/mui/pigment-css), [Stitches](https://stitches.dev), [Ecsstatic](https://github.com/danielroe/ecsstatic), [Restyle](https://restyle.dev), and [goober](https://goober.rocks).
+
+Thanks to each and every one for ideas and inspiration.

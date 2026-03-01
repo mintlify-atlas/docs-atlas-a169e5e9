@@ -1,0 +1,312 @@
+---
+title: createGlobalStyle
+description: Create global (unscoped) styles for your application
+---
+
+Create global styles that apply to your entire application. Returns a component that should be rendered once at the root of your app.
+
+## Function Signature
+
+```typescript
+function createGlobalStyle(
+  strings: TemplateStringsArray,
+  ...interpolations: never[]
+): () => null;
+```
+
+## Parameters
+
+<ParamField path="strings" type="TemplateStringsArray" required>
+  Template literal strings containing global CSS rules
+</ParamField>
+
+<ParamField path="interpolations" type="never[]">
+  No interpolations allowed - CSS must be static
+</ParamField>
+
+## Returns
+
+<ResponseField name="GlobalStyleComponent" type="() => null">
+  A React component that renders nothing but ensures global CSS is loaded
+</ResponseField>
+
+## Usage
+
+### Basic Global Styles
+
+Create a global stylesheet with resets and base styles:
+
+```tsx
+import { createGlobalStyle } from '@alex.radulescu/styled-static';
+import { createRoot } from 'react-dom/client';
+
+const GlobalStyle = createGlobalStyle`
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    font-family: system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+`;
+
+// Render once at app root
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <GlobalStyle />
+    <App />
+  </StrictMode>
+);
+```
+
+### CSS Variables for Theming
+
+Define CSS custom properties at the `:root` level:
+
+```tsx
+const GlobalStyle = createGlobalStyle`
+  :root {
+    --color-primary: #3b82f6;
+    --color-text: #1a1a1a;
+    --color-background: #ffffff;
+    --spacing-unit: 0.25rem;
+  }
+
+  body {
+    color: var(--color-text);
+    background: var(--color-background);
+  }
+`;
+```
+
+### Theme Support
+
+Create theme-aware global styles using data attributes:
+
+```tsx
+const GlobalStyle = createGlobalStyle`
+  :root,
+  [data-theme="light"] {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --primary: #3b82f6;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0a0a0a;
+    --text: #f1f5f9;
+    --primary: #60a5fa;
+  }
+
+  [data-theme="pokemon"] {
+    --bg: #ffcb05;
+    --text: #2a75bb;
+    --primary: #cc0000;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+  }
+`;
+```
+
+### Typography Styles
+
+Set up global typography:
+
+```tsx
+const GlobalStyle = createGlobalStyle`
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    margin: 0 0 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 2rem; }
+  h3 { font-size: 1.5rem; }
+
+  p {
+    margin: 0 0 1rem;
+  }
+
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+`;
+```
+
+### CSS Resets
+
+Include a modern CSS reset:
+
+```tsx
+const GlobalStyle = createGlobalStyle`
+  /* Modern CSS reset */
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    height: 100%;
+  }
+
+  body {
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  img, picture, video, canvas, svg {
+    display: block;
+    max-width: 100%;
+  }
+
+  input, button, textarea, select {
+    font: inherit;
+  }
+
+  p, h1, h2, h3, h4, h5, h6 {
+    overflow-wrap: break-word;
+  }
+`;
+```
+
+### Font Imports
+
+Import custom fonts:
+
+```tsx
+const GlobalStyle = createGlobalStyle`
+  @font-face {
+    font-family: 'Inter';
+    src: url('/fonts/Inter-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  @font-face {
+    font-family: 'Inter';
+    src: url('/fonts/Inter-Bold.woff2') format('woff2');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+`;
+```
+
+## How It Works
+
+### Build-Time Extraction
+
+Global styles are extracted to CSS at build time:
+
+```tsx
+// What you write:
+const GlobalStyle = createGlobalStyle`
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+`;
+
+// What gets generated:
+import "@alex.radulescu/styled-static:global-abc123.css";
+const GlobalStyle = () => null;
+
+// CSS output (unscoped):
+// * { box-sizing: border-box; }
+// body { margin: 0; }
+```
+
+### Zero Runtime
+
+The component renders nothing and has zero runtime cost:
+
+```tsx
+<GlobalStyle /> // → null (CSS already loaded via import)
+```
+
+## Best Practices
+
+### Single Global Style Component
+
+Create one global style component for your app:
+
+```tsx
+// styles/global.ts
+export const GlobalStyle = createGlobalStyle`
+  /* All global styles here */
+`;
+
+// App.tsx
+import { GlobalStyle } from './styles/global';
+
+function App() {
+  return (
+    <>
+      <GlobalStyle />
+      <Router />
+    </>
+  );
+}
+```
+
+### Avoid Overuse
+
+Use global styles sparingly. Prefer scoped component styles:
+
+```tsx
+// ✅ Good: Resets and CSS variables
+const GlobalStyle = createGlobalStyle`
+  :root { --color-primary: blue; }
+  * { box-sizing: border-box; }
+`;
+
+// ❌ Bad: Component-specific styles
+const GlobalStyle = createGlobalStyle`
+  .button { padding: 1rem; } /* Use styled.button instead */
+`;
+```
+
+### Theme Integration
+
+Combine with theme helpers for dynamic theming:
+
+```tsx
+import { initTheme, setTheme } from '@alex.radulescu/styled-static';
+
+const GlobalStyle = createGlobalStyle`
+  [data-theme="light"] { --bg: white; }
+  [data-theme="dark"] { --bg: black; }
+`;
+
+// Initialize theme on app load
+initTheme({ defaultTheme: 'light', useSystemPreference: true });
+```
+
+## See Also
+
+- [styled](/api/styled) - Create styled components
+- [css](/api/css) - Get a scoped class name
+- [initTheme](/api/init-theme) - Runtime theme utilities

@@ -1,0 +1,188 @@
+---
+title: 'Vite Plugin'
+description: 'API reference for the styledStatic Vite plugin and configuration options'
+---
+
+## styledStatic()
+
+Vite plugin that transforms styled-static syntax into optimized React components with static CSS extraction.
+
+The plugin runs with `enforce: 'post'` to execute after the React plugin, ensuring JSX is already transformed. This allows it to work with all file types: `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`, etc.
+
+### Basic Usage
+
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { styledStatic } from 'styled-static/vite';
+
+export default defineConfig({
+  plugins: [react(), styledStatic()],
+});
+```
+
+### With Configuration
+
+```typescript
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { styledStatic } from 'styled-static/vite';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    styledStatic({
+      classPrefix: 'my-app',
+      debug: true,
+      cssOutput: 'file',
+    }),
+  ],
+});
+```
+
+## Configuration Options
+
+<ParamField path="classPrefix" type="string" default="ss">
+  Prefix for generated class names. In development mode, class names include the component name and file for easier debugging. In production, they use content hashes for minimal size.
+
+  ```typescript
+  styledStatic({ classPrefix: 'my-app' })
+  // Dev: .my-app-Button-HomePage
+  // Prod: .my-app-a3f2b1c4
+  ```
+</ParamField>
+
+<ParamField path="debug" type="boolean" default="false">
+  Enable debug logging to see transformation details, file processing, and CSS output decisions. Can also be enabled via `DEBUG_STYLED_STATIC=true` environment variable.
+
+  Debug logs expose file paths and internal state; disable in production for security.
+
+  ```typescript
+  styledStatic({ debug: true })
+  // Logs: transforming files, CSS output mode, template/variant counts
+  ```
+</ParamField>
+
+<ParamField path="cssOutput" type="'auto' | 'virtual' | 'file'" default="auto">
+  Controls how CSS is output during the build process.
+
+  ### Modes
+
+  **`auto` (default)**
+  - Library builds (`build.lib` set): Uses `file` mode
+  - App builds: Uses `virtual` mode
+  - Automatically chooses the best mode for your build type
+
+  **`virtual`**
+  - CSS is generated as virtual modules
+  - Vite bundles all CSS into a single file
+  - Best for applications where you want a single CSS bundle
+  - No tree-shaking of unused styles
+
+  **`file`**
+  - CSS is emitted as separate files co-located with JS chunks
+  - Enables tree-shaking for library builds
+  - Each JS chunk gets a corresponding CSS file
+  - Consumers only import CSS for components they use
+
+  ### Examples
+
+  ```typescript
+  // Auto mode - recommended for most projects
+  styledStatic({ cssOutput: 'auto' })
+  ```
+
+  ```typescript
+  // Virtual mode - single CSS bundle for apps
+  styledStatic({ cssOutput: 'virtual' })
+  // Build output:
+  // dist/assets/index-a3f2b1c4.css (all styles)
+  // dist/assets/index-x8k2n5m1.js
+  ```
+
+  ```typescript
+  // File mode - tree-shakeable CSS for libraries
+  styledStatic({ cssOutput: 'file' })
+  // Build output:
+  // dist/Button.css
+  // dist/Button.js
+  // dist/Input.css
+  // dist/Input.js
+  ```
+</ParamField>
+
+## Zero Dependencies
+
+The plugin has no direct dependencies and uses:
+- Vite's built-in parser (via Rollup's acorn)
+- Native CSS nesting (Chrome 112+, Safari 16.5+, Firefox 117+, Edge 112+)
+- Vite's CSS pipeline for processing
+
+### Optional: Lightning CSS
+
+For faster CSS processing and better browser compatibility, install `lightningcss`:
+
+```bash
+npm install lightningcss
+```
+
+Then enable in `vite.config.ts`:
+
+```typescript
+export default defineConfig({
+  css: { transformer: 'lightningcss' },
+  plugins: [react(), styledStatic()],
+});
+```
+
+## Transformation Pipeline
+
+The plugin processes files in the following steps:
+
+1. **Parse** - Uses Vite's built-in parser (post-React transform)
+2. **Extract** - Finds all `styled`/`css`/`createGlobalStyle` tagged templates
+3. **Transform** - For each template:
+   - Extracts CSS content
+   - Generates unique class name via hash
+   - Creates virtual CSS module
+   - Replaces original code with runtime call + import
+4. **Output** - Returns transformed code with source map
+
+## CSS Cascade Order
+
+When components are extended, classes are ordered for proper CSS cascade:
+
+```tsx
+const Button = styled.button`padding: 1rem;`;        // .ss-abc
+const Primary = styled(Button)`background: blue;`;   // .ss-def
+<Primary className="custom" />
+
+// Renders: class="ss-abc ss-def custom"
+// CSS cascade: padding → background → custom overrides
+```
+
+Class order ensures:
+- Base styles are applied first
+- Extension styles override base styles
+- User `className` prop overrides all styles
+
+## Hot Module Replacement
+
+The plugin includes full HMR support:
+- CSS changes update instantly without page reload
+- Virtual modules are invalidated on file changes
+- Style tags are replaced in-place during development
+
+## Type Safety
+
+The plugin is fully typed and exports the `StyledStaticOptions` interface:
+
+```typescript
+import type { StyledStaticOptions } from 'styled-static/vite';
+
+const options: StyledStaticOptions = {
+  classPrefix: 'my-app',
+  debug: true,
+  cssOutput: 'auto',
+};
+```

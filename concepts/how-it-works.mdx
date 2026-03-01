@@ -1,0 +1,466 @@
+---
+title: How It Works
+description: Understanding the build-time transformation process, AST parsing, and virtual CSS modules in styled-static
+---
+
+# How It Works
+
+styled-static uses a Vite plugin to transform your styled components at build time through AST parsing and virtual CSS modules. This page explains the complete transformation pipeline.
+
+## Architecture Overview
+
+The transformation happens in several stages:
+
+```
+1. Source Code (styled templates)
+   ↓
+2. AST Parsing (Vite's built-in parser)
+   ↓
+3. Template Detection & Classification
+   ↓
+4. CSS Extraction & Hashing
+   ↓
+5. Virtual CSS Module Creation
+   ↓
+6. Code Generation (inline components)
+   ↓
+7. Output (optimized JS + CSS)
+```
+
+## Plugin Order: Post-React Transform
+
+The plugin uses `enforce: 'post'` to run **after** the React plugin:
+
+```ts
+export function styledStatic(options = {}) {
+  return {
+    name: "styled-static",
+    enforce: "post", // Run AFTER React plugin
+    // ...
+  };
+}
+```
+
+**Why post-order?** By running after the React plugin, JSX is already transformed to `React.createElement()` calls. This means:
+
+- Vite's built-in parser (acorn) can parse the code without JSX syntax
+- Works with ALL file types: `.js`, `.jsx`, `.ts`, `.tsx`, `.mjs`, `.cjs`
+- Zero dependencies needed for parsing
+
+## Transformation Pipeline
+
+### Step 1: Quick Import Check
+
+Before parsing, the plugin performs a fast string check:
+
+```ts
+const hasStyledStaticImport = code.includes("styled-static");
+const hasLocalIndexImport =
+  code.includes('from "./index"') ||
+  code.includes("from './index'");
+
+if (!hasStyledStaticImport && !hasLocalIndexImport) {
+  return null; // Skip files that don't use the library
+}
+```
+
+This optimization avoids parsing files that don't use styled-static.
+
+### Step 2: AST Parsing
+
+The plugin uses Vite's built-in parser (Rollup's acorn):
+
+```ts
+let ast: ESTree.Program;
+try {
+  ast = this.parse(code) as ESTree.Program;
+} catch (e) {
+  // Parse error - skip file
+  return null;
+}
+```
+
+Since JSX is already transformed, the parser works with standard JavaScript/TypeScript syntax.
+
+### Step 3: Import Detection
+
+The parser walks the AST to find styled-static imports and their local names:
+
+```ts
+// Source code:
+import { styled as s, css, styledVariants } from '@alex.radulescu/styled-static';
+
+// Detected imports:
+{
+  styled: "s",              // handles aliasing
+  css: "css",
+  styledVariants: "styledVariants",
+  source: "@alex.radulescu/styled-static"
+}
+```
+
+This supports import aliasing, so users can rename imports as needed.
+
+### Step 4: Template Detection & Classification
+
+The plugin finds all tagged template literals and classifies them:
+
+**Supported template types:**
+
+```tsx
+// 1. styled.element
+const Button = styled.button`padding: 1rem;`;
+// Type: "styled"
+
+// 2. styled(Component)
+const Primary = styled(Button)`background: blue;`;
+// Type: "styledExtend"
+
+// 3. styled.element.attrs({...})
+const Input = styled.input.attrs({ type: "text" })`width: 100%;`;
+// Type: "styledAttrs"
+
+// 4. css helper
+const activeClass = css`color: blue;`;
+// Type: "css"
+
+// 5. keyframes
+const spin = keyframes`from { transform: rotate(0deg); }`;
+// Type: "keyframes"
+
+// 6. createGlobalStyle
+const GlobalStyle = createGlobalStyle`body { margin: 0; }`;
+// Type: "createGlobalStyle"
+```
+
+Each type generates different output code (see [Code Generation](#code-generation) below).
+
+### Step 5: Variant Detection
+
+The plugin also detects variant calls:
+
+```tsx
+// styledVariants
+const Button = styledVariants({
+  component: "button",
+  css: `padding: 1rem;`,
+  variants: {
+    size: {
+      sm: `font-size: 0.875rem;`,
+      lg: `font-size: 1.125rem;`,
+    },
+  },
+});
+// Type: "styledVariants"
+
+// cssVariants
+const badgeCss = cssVariants({
+  css: `padding: 0.25rem;`,
+  variants: { color: { blue: `background: blue;` } },
+});
+// Type: "cssVariants"
+```
+
+### Step 6: CSS Extraction & Hashing
+
+For each template, the plugin extracts the CSS content and generates a unique class name:
+
+```ts
+// Extract raw CSS from template literal
+const cssContent = extractTemplateContent(code, template.quasi);
+// Example: "padding: 1rem; background: blue; color: white;"
+
+// Generate class name
+let className: string;
+if (isDev && variableName) {
+  // Dev mode: readable class names
+  const fileBase = getFileBaseName(id); // "Button"
+  className = `${classPrefix}-${variableName}-${fileBase}`;
+  // Result: "ss-Button-Button"
+} else {
+  // Production: hash-based class names
+  const cssHash = hash(cssContent).slice(0, 8);
+  className = `${classPrefix}-${cssHash}`;
+  // Result: "ss-a1b2c3d4"
+}
+```
+
+**Hashing algorithm:** Uses Murmurhash2 (non-cryptographic, fast) to generate deterministic hashes from CSS content. See `/home/daytona/workspace/source/src/hash.ts:8`.
+
+### Step 7: CSS Wrapping
+
+The CSS is wrapped appropriately based on type:
+
+```ts
+const processedCss =
+  type === "createGlobalStyle"
+    ? cssContent                              // unscoped (raw CSS)
+    : type === "keyframes"
+      ? `@keyframes ${className} { ${cssContent} }`  // wrapped in @keyframes
+      : `.${className} { ${cssContent} }`;    // wrapped in class selector
+```
+
+**Examples:**
+
+```css
+/* styled/css: scoped with class selector */
+.ss-a1b2c3d4 {
+  padding: 1rem;
+  background: blue;
+}
+
+/* keyframes: wrapped in @keyframes rule */
+@keyframes ss-spin-xyz {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* createGlobalStyle: unscoped */
+* { box-sizing: border-box; }
+body { margin: 0; }
+```
+
+### Step 8: Virtual CSS Module Creation
+
+Each styled component gets a unique virtual CSS module:
+
+```ts
+// Create virtual module ID
+const cssModuleBase = `virtual:styled-static/${normalizePath(id)}/${cssIndex++}`;
+const cssModuleId = `${cssModuleBase}.css`;
+const importId = isDev ? `${cssModuleBase}.js` : cssModuleId;
+
+// Store CSS content in memory map
+cssModules.set(cssModuleId, { css: processedCss, sourceFile: id });
+
+// Generate import statement
+cssImports.push(`import "${importId}";`);
+```
+
+**Virtual module structure:**
+
+```
+virtual:styled-static/
+  /path/to/Button.tsx/
+    0.css  -> Button base styles
+    1.css  -> Primary variant styles
+  /path/to/Card.tsx/
+    0.css  -> Card styles
+```
+
+Virtual modules are resolved and loaded by the plugin's `resolveId()` and `load()` hooks.
+
+## Code Generation
+
+The plugin generates different code based on template type:
+
+### styled.element → Inline Component
+
+```tsx
+// Input:
+const Button = styled.button`padding: 1rem;`;
+
+// Output:
+import { createElement } from "react";
+import { m } from "@alex.radulescu/styled-static/runtime";
+import "virtual:styled-static/.../0.css";
+
+const Button = Object.assign(
+  (p) => createElement("button", {...p, className: m("ss-abc", p.className)}),
+  { className: "ss-abc" }
+);
+```
+
+**Structure breakdown:**
+- `Object.assign()` creates a function with a static `.className` property
+- The function is the component (takes props, returns React element)
+- `m()` merges base class with user's className prop
+- `.className` property enables manual composition
+
+### styled(Component) → Extended Component
+
+```tsx
+// Input:
+const Primary = styled(Button)`background: blue;`;
+
+// Output:
+const Primary = Object.assign(
+  (p) => createElement(Button, {...p, className: m("ss-def", p.className)}),
+  { className: Button.className + " " + "ss-def" }
+);
+```
+
+**Key difference:** The `.className` property includes the base component's class for proper cascade order.
+
+### css → String Literal
+
+```tsx
+// Input:
+const activeClass = css`color: blue;`;
+
+// Output:
+import "virtual:styled-static/.../0.css";
+const activeClass = "ss-abc";
+```
+
+**Zero runtime:** Just a string assignment.
+
+### keyframes → String Literal
+
+```tsx
+// Input:
+const spin = keyframes`from { transform: rotate(0deg); }`;
+
+// Output:
+import "virtual:styled-static/.../0.css";
+const spin = "ss-spin-xyz";
+```
+
+**Zero runtime:** Returns the animation name for use in CSS.
+
+### createGlobalStyle → Null Component
+
+```tsx
+// Input:
+const GlobalStyle = createGlobalStyle`body { margin: 0; }`;
+
+// Output:
+import "virtual:styled-static/.../0.css";
+const GlobalStyle = () => null;
+```
+
+**Zero runtime:** The CSS is imported (side effect), component renders nothing.
+
+## Virtual CSS Module Loading
+
+### Development Mode
+
+In dev mode, virtual modules return JavaScript that injects CSS into the DOM:
+
+```js
+const id = "virtual:styled-static/.../0.css";
+const css = ".ss-abc { padding: 1rem; }\n/*# sourceURL=/path/to/Button.tsx */";
+
+// Remove existing style (HMR cleanup)
+const existing = document.querySelector(`style[data-ss-id="${id}"]`);
+if (existing) existing.remove();
+
+// Inject new style
+const style = document.createElement('style');
+style.setAttribute('data-ss-id', id);
+style.textContent = css;
+document.head.appendChild(style);
+
+// HMR support
+if (import.meta.hot) {
+  import.meta.hot.accept();
+}
+
+export default css;
+```
+
+**Benefits:**
+- Instant HMR (no page reload)
+- Source mapping via `sourceURL` comment
+- Proper cleanup on hot reload
+
+### Production Mode
+
+In production, virtual modules return raw CSS for Vite's CSS pipeline:
+
+```ts
+if (actualCssOutput === "file") {
+  return ""; // Emit files in generateBundle hook
+}
+return css; // Return raw CSS for Vite bundler
+```
+
+Vite's CSS pipeline handles:
+- Minification
+- Autoprefixing (if Lightning CSS enabled)
+- Deduplication
+- Code splitting
+- Asset extraction
+
+## className Cascade Order
+
+When components are extended, classes are ordered for proper CSS cascade:
+
+```tsx
+const Button = styled.button`padding: 1rem;`;        // .ss-abc
+const Primary = styled(Button)`background: blue;`;   // .ss-def
+<Primary className="custom" />
+// Renders: class="ss-abc ss-def custom"
+```
+
+**Order:**
+1. Base styles first (`.ss-abc`)
+2. Extension styles second (`.ss-def`) - overrides base
+3. User className last (`custom`) - overrides all
+
+This ensures the CSS cascade works as expected without `!important` or specificity hacks.
+
+## Source Maps
+
+The plugin generates high-resolution source maps using MagicString:
+
+```ts
+return {
+  code: s.toString(),
+  map: s.generateMap({ hires: true }),
+};
+```
+
+Source maps enable:
+- Debugging original source in browser DevTools
+- Proper stack traces in errors
+- Accurate code coverage reports
+
+## Memory Management
+
+The plugin cleans up stale CSS modules during HMR:
+
+```ts
+// Clean up stale CSS modules from previous transforms
+const normalizedId = normalizePath(id);
+for (const key of cssModules.keys()) {
+  if (key.includes(normalizedId + "/")) {
+    cssModules.delete(key);
+  }
+}
+```
+
+This prevents unbounded memory growth during long development sessions.
+
+## Performance Optimizations
+
+### 1. Fast Import Check
+
+Avoids parsing files that don't use styled-static (string search is faster than AST parsing).
+
+### 2. Hybrid Variant Strategy
+
+For variants with many values, the plugin uses a hoisted static map:
+
+```ts
+const VARIANT_MAP_THRESHOLD = 4;
+
+// <= 4 values: if/else chain (zero allocation)
+if (size === "sm") c += " ss-btn--size-sm";
+else if (size === "lg") c += " ss-btn--size-lg";
+
+// > 4 values: hoisted map (O(1) lookup)
+const _vm0 = {size: {sm: " ss-btn--size-sm", lg: " ss-btn--size-lg"}};
+c += _vm0.size[size] || "";
+```
+
+See `/home/daytona/workspace/source/src/codegen.ts:82-223` for implementation.
+
+### 3. Skip node_modules
+
+The plugin skips transforming files in `node_modules` to avoid processing third-party code.
+
+## Next Steps
+
+- Learn about [Static Extraction](/concepts/static-extraction) - deep dive into CSS extraction
+- Learn about [Zero Runtime](/concepts/zero-runtime) - understand the minimal runtime

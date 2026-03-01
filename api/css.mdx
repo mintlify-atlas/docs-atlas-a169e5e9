@@ -1,0 +1,145 @@
+---
+title: css
+description: Get a scoped class name for CSS without creating a component
+---
+
+The `css` helper returns a scoped class name that can be mixed with other classes or used conditionally. Useful for situations where you don't need a full component.
+
+## Function Signature
+
+```typescript
+function css(
+  strings: TemplateStringsArray,
+  ...interpolations: never[]
+): string;
+```
+
+## Parameters
+
+<ParamField path="strings" type="TemplateStringsArray" required>
+  Template literal strings containing CSS rules
+</ParamField>
+
+<ParamField path="interpolations" type="never[]">
+  No interpolations allowed - CSS must be static
+</ParamField>
+
+## Returns
+
+<ResponseField name="className" type="string">
+  A scoped class name (e.g., `"ss-abc123"`)
+</ResponseField>
+
+## Usage
+
+### Basic Usage
+
+Create reusable class names for conditional styling:
+
+```tsx
+import { css } from '@alex.radulescu/styled-static';
+
+const activeClass = css`
+  outline: 2px solid blue;
+  background: #eff6ff;
+`;
+
+const highlightClass = css`
+  box-shadow: 0 0 10px yellow;
+`;
+
+// Use conditionally
+<Button className={isActive ? activeClass : ''}>
+  Conditional styling
+</Button>
+```
+
+### Mix with Styled Components
+
+Combine `css` helper classes with styled components:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: blue;
+`;
+
+const activeClass = css`
+  outline: 2px solid blue;
+`;
+
+<Button className={isActive ? activeClass : ''}>
+  Mixed styling
+</Button>
+```
+
+### Multiple Classes
+
+Combine multiple `css` helper classes:
+
+```tsx
+const activeClass = css`
+  outline: 2px solid blue;
+`;
+
+const highlightClass = css`
+  box-shadow: 0 0 10px yellow;
+`;
+
+// String concatenation
+<div className={`${activeClass} ${highlightClass}`}>
+  Multiple classes
+</div>
+
+// Or use cx utility
+<div className={cx(activeClass, highlightClass)}>
+  Multiple classes
+</div>
+```
+
+### With Variants
+
+Use `css` helper with the variants API for IDE syntax highlighting:
+
+```tsx
+import { css, styledVariants } from '@alex.radulescu/styled-static';
+
+const Button = styledVariants({
+  component: 'button',
+  css: css`
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+  `,
+  variants: {
+    color: {
+      primary: css`background: blue; color: white;`,
+      danger: css`background: red; color: white;`,
+    },
+  },
+});
+```
+
+<Note>
+  Wrapping CSS in the `css` helper enables syntax highlighting from the vscode-styled-components extension, even though the function itself is just an identity function at runtime.
+</Note>
+
+## Zero Runtime Cost
+
+At build time, the `css` helper is completely removed:
+
+```tsx
+// What you write:
+const activeClass = css`outline: 2px solid blue;`;
+
+// What gets generated:
+const activeClass = "ss-xyz789";
+import "@alex.radulescu/styled-static:xyz789-0.css";
+```
+
+The CSS is extracted to a virtual module, and the helper becomes just a string.
+
+## See Also
+
+- [styled](/api/styled) - Create styled components
+- [cx](/api/cx) - Utility for conditionally joining class names
+- [cssVariants](/api/css-variants) - Create variant functions that return class strings

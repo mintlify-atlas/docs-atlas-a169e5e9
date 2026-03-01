@@ -1,0 +1,167 @@
+---
+title: styled
+description: Create styled React components with zero-runtime CSS extraction
+---
+
+The core API for creating styled components. CSS is extracted to static files at build time, and components become lightweight runtime wrappers.
+
+## Function Signature
+
+```typescript
+type StyledFunction = {
+  // Style an HTML element
+  <T extends HTMLTag>(tag: T): (
+    strings: TemplateStringsArray,
+    ...interpolations: never[]
+  ) => StyledComponent<T>;
+
+  // Extend an existing styled component
+  <P extends { className?: string }>(component: ComponentType<P>): (
+    strings: TemplateStringsArray,
+    ...interpolations: never[]
+  ) => StyledComponent<ComponentType<P>>;
+} & {
+  // Shorthand for all HTML elements
+  [K in HTMLTag]: StyledElementBuilder<K>;
+};
+```
+
+## Return Type
+
+```typescript
+type StyledComponent<T extends HTMLTag | ComponentType<any>> = 
+  ComponentType<PropsOf<T>> & {
+    className: string; // Static class name for composition
+  };
+```
+
+## Usage
+
+### Style HTML Elements
+
+Use the `styled.element` syntax to style any HTML element:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: #2563eb;
+  }
+`;
+
+<Button onClick={handleClick}>Click me</Button>
+```
+
+### Extend Existing Components
+
+Pass an existing styled component to `styled()` to extend it with additional styles:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+`;
+
+// Extend with additional styles
+const PrimaryButton = styled(Button)`
+  background: #3b82f6;
+  color: white;
+`;
+
+// Chain extensions
+const LargePrimaryButton = styled(PrimaryButton)`
+  padding: 1rem 2rem;
+  font-size: 1.25rem;
+`;
+```
+
+### CSS Cascade Order
+
+When components are extended, classes are ordered correctly:
+
+- Base styles first
+- Extension styles second (override base)
+- User className last (override all)
+
+```tsx
+<LargePrimaryButton className="custom" />
+// Renders: class="ss-base ss-primary ss-large custom"
+```
+
+### CSS Nesting
+
+Use native CSS nesting for pseudo-classes, media queries, and child selectors:
+
+```tsx
+const Card = styled.div`
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+
+  /* Pseudo-classes */
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Child selectors */
+  & h2 {
+    margin: 0 0 0.5rem;
+  }
+
+  /* Media queries */
+  @media (max-width: 640px) {
+    padding: 0.5rem;
+  }
+
+  /* Pseudo-elements */
+  &::before {
+    content: "";
+    position: absolute;
+  }
+`;
+```
+
+## Special Features
+
+### .className Property
+
+Every styled component exposes a static `.className` property for manual composition:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: blue;
+`;
+
+// Use className directly on any element
+<a className={Button.className} href="/link">
+  Link with button styles
+</a>
+```
+
+### Type Inference
+
+Styled components have full type inference:
+
+```tsx
+const Button = styled.button`...`;
+
+// ✅ Type-safe: button props are available
+<Button type="submit" disabled>Submit</Button>
+
+// ✅ Type-safe: .className is always string
+const classes = Button.className; // string
+```
+
+## See Also
+
+- [css](/api/css) - Get a scoped class name for mixing styles
+- [withComponent](/api/with-component) - Polymorphism API for rendering one component with another's styles

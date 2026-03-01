@@ -1,0 +1,101 @@
+---
+title: initTheme
+description: Initialize the theme system on page load with localStorage and system preference support
+---
+
+## Usage
+
+Initialize the theme system when your application loads. The function applies themes in priority order: stored theme from localStorage, system preference (if enabled), or default theme.
+
+```tsx
+import { initTheme } from '@alex.radulescu/styled-static';
+
+// Basic usage
+initTheme();
+
+// With system preference detection
+initTheme({ useSystemPreference: true });
+
+// Full configuration
+initTheme({
+  defaultTheme: 'light',
+  storageKey: 'my-app-theme',
+  useSystemPreference: true,
+});
+```
+
+## Signature
+
+```tsx
+function initTheme(options?: InitThemeOptions): string
+```
+
+## Parameters
+
+<ParamField path="options" type="InitThemeOptions" default="{}">
+  Configuration options for theme initialization
+  
+  <Expandable title="properties">
+    <ParamField path="defaultTheme" type="string" default="'light'">
+      The default theme to use when no stored preference exists
+    </ParamField>
+    
+    <ParamField path="storageKey" type="string" default="'theme'">
+      The localStorage key used to persist the theme
+    </ParamField>
+    
+    <ParamField path="useSystemPreference" type="boolean" default="false">
+      Whether to use the system's color scheme preference as a fallback. When enabled, checks `prefers-color-scheme: dark` media query
+    </ParamField>
+    
+    <ParamField path="attribute" type="string" default="'data-theme'">
+      Custom attribute name to set on documentElement
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ResponseField name="theme" type="string">
+  The theme that was applied
+</ResponseField>
+
+## Behavior
+
+The function applies themes in the following priority order:
+
+1. **Stored theme from localStorage** - Checks the configured `storageKey` for a saved theme preference
+2. **System preference** - If `useSystemPreference` is `true`, checks the `prefers-color-scheme` media query
+3. **Default theme** - Falls back to the `defaultTheme` option
+
+The selected theme is set on the document element using the specified attribute (default: `data-theme`).
+
+## Examples
+
+### Basic initialization
+
+```tsx
+import { initTheme } from '@alex.radulescu/styled-static';
+
+// Initialize on app load
+initTheme({ defaultTheme: 'light', useSystemPreference: true });
+```
+
+### Custom storage key
+
+```tsx
+initTheme({
+  defaultTheme: 'light',
+  storageKey: 'my-app-theme',
+  useSystemPreference: true,
+});
+```
+
+### Custom attribute
+
+```tsx
+initTheme({
+  defaultTheme: 'light',
+  attribute: 'data-color-mode',
+});
+```

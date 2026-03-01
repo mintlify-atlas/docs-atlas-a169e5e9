@@ -1,0 +1,124 @@
+---
+title: onSystemThemeChange
+description: Subscribe to operating system theme preference changes
+---
+
+## Usage
+
+Listen for changes to the system's color scheme preference (light/dark mode) and react accordingly.
+
+```tsx
+import { onSystemThemeChange, setTheme } from '@alex.radulescu/styled-static';
+
+const unsubscribe = onSystemThemeChange((isDark) => {
+  if (!localStorage.getItem('theme')) {
+    setTheme(isDark ? 'dark' : 'light', false);
+  }
+});
+
+// Later: stop listening
+unsubscribe();
+```
+
+## Signature
+
+```tsx
+function onSystemThemeChange(
+  callback: (prefersDark: boolean) => void
+): () => void
+```
+
+## Parameters
+
+<ParamField path="callback" type="(prefersDark: boolean) => void" required>
+  Function called when the system preference changes. Receives a boolean indicating whether dark mode is preferred
+</ParamField>
+
+## Returns
+
+<ResponseField name="unsubscribe" type="() => void">
+  A function to remove the event listener and stop receiving updates
+</ResponseField>
+
+## Behavior
+
+The function:
+
+1. Subscribes to the `prefers-color-scheme: dark` media query
+2. Calls the callback whenever the system preference changes
+3. Returns an unsubscribe function to clean up the listener
+4. Returns a no-op function in environments where `matchMedia` is unavailable
+
+## Examples
+
+### React to system changes
+
+```tsx
+import { onSystemThemeChange, setTheme } from '@alex.radulescu/styled-static';
+
+const unsubscribe = onSystemThemeChange((prefersDark) => {
+  if (!localStorage.getItem('theme')) {
+    setTheme(prefersDark ? 'dark' : 'light', false);
+  }
+});
+
+// Later: stop listening
+unsubscribe();
+```
+
+### Using with React
+
+```tsx
+import { useEffect } from 'react';
+import { onSystemThemeChange, setTheme } from '@alex.radulescu/styled-static';
+
+function App() {
+  useEffect(() => {
+    // Subscribe to system theme changes
+    const unsubscribe = onSystemThemeChange((prefersDark) => {
+      // Only auto-switch if user hasn't set a preference
+      if (!localStorage.getItem('theme')) {
+        setTheme(prefersDark ? 'dark' : 'light', false);
+      }
+    });
+
+    // Cleanup on unmount
+    return unsubscribe;
+  }, []);
+
+  return <div>My App</div>;
+}
+```
+
+### Respect user preferences
+
+```tsx
+import { initTheme, onSystemThemeChange, setTheme } from '@alex.radulescu/styled-static';
+
+// Initialize with system preference
+initTheme({ defaultTheme: 'light', useSystemPreference: true });
+
+// Keep synced with system only if user hasn't overridden
+onSystemThemeChange((prefersDark) => {
+  const userTheme = localStorage.getItem('theme');
+  
+  // Only auto-switch if no user preference is stored
+  if (!userTheme) {
+    setTheme(prefersDark ? 'dark' : 'light', false);
+  }
+});
+```
+
+### Custom theme mapping
+
+```tsx
+import { onSystemThemeChange, setTheme } from '@alex.radulescu/styled-static';
+
+// Map system preference to custom themes
+onSystemThemeChange((prefersDark) => {
+  if (!localStorage.getItem('theme')) {
+    // Use custom theme names
+    setTheme(prefersDark ? 'midnight' : 'daylight', false);
+  }
+});
+```

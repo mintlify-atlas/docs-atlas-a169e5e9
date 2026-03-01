@@ -1,0 +1,324 @@
+---
+title: styledVariants
+description: Create styled components with type-safe variant props that apply CSS classes based on prop values
+---
+
+Create a styled component with variant support. CSS for base and all variants is extracted at build time. Variant props are mapped to modifier classes at runtime.
+
+## Signature
+
+```typescript
+function styledVariants<
+  T extends HTMLTag | ComponentType<any>,
+  V extends VariantsConfig
+>(
+  config: StyledVariantsDefinition<V> & { component: T }
+): StyledVariantComponent<T, V>
+```
+
+## Parameters
+
+<ParamField path="config" type="StyledVariantsDefinition<V> & { component: T }" required>
+  Configuration object for the variant component
+
+  <Expandable title="properties">
+    <ParamField path="component" type="HTMLTag | ComponentType<any>" required>
+      The HTML tag or React component to render
+
+      ```tsx
+      component: 'button'
+      component: Link
+      ```
+    </ParamField>
+
+    <ParamField path="css" type="string">
+      Base CSS that always applies. Use `css\`...\`` for IDE syntax highlighting.
+
+      ```tsx
+      css: css`
+        padding: 0.5rem 1rem;
+        border-radius: 4px;
+      `
+      ```
+    </ParamField>
+
+    <ParamField path="variants" type="VariantsConfig" required>
+      Variant definitions. Each variant is a key-value map where keys are variant names and values are objects mapping variant values to CSS strings.
+
+      ```tsx
+      variants: {
+        color: {
+          primary: css`background: blue;`,
+          danger: css`background: red;`,
+        },
+        size: {
+          sm: css`font-size: 0.875rem;`,
+          lg: css`font-size: 1.125rem;`,
+        },
+      }
+      ```
+
+      **Type:**
+      ```typescript
+      type VariantsConfig = Record<string, Record<string, string>>
+      ```
+    </ParamField>
+
+    <ParamField path="defaultVariants" type="Partial<{ [K in keyof V]: keyof V[K] }>">
+      Default values for variants, applied when the variant prop is undefined.
+
+      ```tsx
+      defaultVariants: {
+        color: 'primary',
+        size: 'sm',
+      }
+      ```
+    </ParamField>
+
+    <ParamField path="compoundVariants" type="Array<CompoundVariantDefinition<V>>">
+      Compound variants - styles applied when multiple variant conditions match. Each definition is an object with variant conditions plus a `css` property.
+
+      ```tsx
+      compoundVariants: [
+        {
+          size: 'lg',
+          color: 'danger',
+          css: css`font-weight: 900; text-transform: uppercase;`,
+        },
+      ]
+      ```
+
+      **Type:**
+      ```typescript
+      type CompoundVariantDefinition<V extends VariantsConfig> = 
+        Partial<{ [K in keyof V]: keyof V[K] }> & { css: string }
+      ```
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ParamField path="StyledVariantComponent" type="ComponentType<PropsOf<T> & VariantProps<V>>">
+  A React component that accepts the base component's props plus variant props.
+
+  **Variant Props:**
+  ```typescript
+  type VariantProps<V extends VariantsConfig> = {
+    [K in keyof V]?: keyof V[K]
+  }
+  ```
+
+  Each variant name becomes an optional prop with its value names as the type.
+
+  **Features:**
+  - Type-safe variant props with autocomplete
+  - Automatic sanitization (prevents CSS injection)
+  - Variant classes follow BEM-like pattern: `base--variantName-value`
+  - Variant props are automatically removed from the DOM
+</ParamField>
+
+## Examples
+
+### Basic Usage
+
+```tsx
+import { styledVariants, css } from '@alex.radulescu/styled-static';
+
+const Button = styledVariants({
+  component: 'button',
+  css: css`
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+  `,
+  variants: {
+    color: {
+      primary: css`background: blue; color: white;`,
+      danger: css`background: red; color: white;`,
+    },
+    size: {
+      sm: css`font-size: 0.875rem;`,
+      lg: css`font-size: 1.125rem;`,
+    },
+  },
+});
+
+// Usage - variant props become modifier classes
+<Button color="primary" size="lg">Click me</Button>
+// Renders: <button class="ss-abc ss-abc--color-primary ss-abc--size-lg">
+```
+
+### With Default Variants
+
+```tsx
+const Button = styledVariants({
+  component: 'button',
+  css: css`
+    padding: 0.5rem 1rem;
+    background: gray;
+    color: white;
+    font-size: 1rem;
+  `,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+      danger: css`background: red;`,
+      success: css`background: green;`,
+    },
+    size: {
+      sm: css`font-size: 0.875rem; padding: 0.25rem 0.5rem;`,
+      lg: css`font-size: 1.125rem; padding: 0.75rem 1.5rem;`,
+    },
+  },
+  defaultVariants: {
+    color: 'primary',
+    size: 'sm',
+  },
+});
+
+<Button>Click me</Button>
+// Uses defaults: color="primary", size="sm"
+// Renders: <button class="ss-abc ss-abc--color-primary ss-abc--size-sm">
+```
+
+### With Compound Variants
+
+```tsx
+const Button = styledVariants({
+  component: 'button',
+  css: css`
+    padding: 0.5rem 1rem;
+    background: gray;
+    color: white;
+  `,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+      danger: css`background: red;`,
+    },
+    size: {
+      sm: css`font-size: 0.875rem;`,
+      lg: css`font-size: 1.125rem;`,
+    },
+  },
+  compoundVariants: [
+    {
+      size: 'lg',
+      color: 'danger',
+      css: css`
+        font-weight: 900;
+        text-transform: uppercase;
+      `,
+    },
+  ],
+});
+
+<Button size="lg" color="danger">Delete</Button>
+// Gets compound styles (font-weight: 900, text-transform: uppercase)
+```
+
+### With React Components
+
+```tsx
+import { Link } from 'react-router-dom';
+
+const StyledLink = styledVariants({
+  component: Link,
+  css: css`
+    text-decoration: none;
+    border-radius: 4px;
+  `,
+  variants: {
+    variant: {
+      primary: css`color: blue;`,
+      secondary: css`color: gray;`,
+    },
+  },
+});
+
+<StyledLink to="/home" variant="primary">Go Home</StyledLink>
+```
+
+### Without css Helper (Plain Strings)
+
+```tsx
+// Plain strings also work (no IDE highlighting)
+const SimpleButton = styledVariants({
+  component: 'button',
+  css: `padding: 0.5rem;`,
+  variants: {
+    size: {
+      sm: `font-size: 0.875rem;`,
+      lg: `font-size: 1.125rem;`,
+    },
+  },
+});
+```
+
+## Type Definitions
+
+```typescript
+/** Full variants configuration: variantName -> { valueName -> css } */
+type VariantsConfig = Record<string, VariantOptions>;
+
+/** Mapping of variant value names to CSS strings */
+type VariantOptions = Record<string, string>;
+
+/**
+ * Configuration for styledVariants (includes component).
+ */
+interface StyledVariantsDefinition<V extends VariantsConfig = VariantsConfig> {
+  /** HTML tag or component to render */
+  component: HTMLTag | ComponentType<any>;
+  /** Base CSS that always applies */
+  css?: string;
+  /** Variant definitions */
+  variants: V;
+  /** Default values for variants (applied when prop is undefined) */
+  defaultVariants?: Partial<{ [K in keyof V]: keyof V[K] }>;
+  /** Compound variants - styles applied when multiple conditions match */
+  compoundVariants?: Array<CompoundVariantDefinition<V>>;
+}
+
+/**
+ * A single compound variant definition.
+ * Combines multiple variant conditions with CSS to apply when all match.
+ */
+type CompoundVariantDefinition<V extends VariantsConfig> = 
+  Partial<{ [K in keyof V]: keyof V[K] }> & { css: string };
+
+/**
+ * Props derived from a variants config.
+ * Each variant name becomes an optional prop with its value names as the type.
+ */
+type VariantProps<V extends VariantsConfig> = {
+  [K in keyof V]?: keyof V[K];
+};
+
+/**
+ * Component returned by styledVariants.
+ */
+type StyledVariantComponent<
+  T extends HTMLTag | ComponentType<any>,
+  V extends VariantsConfig
+> = T extends HTMLTag
+  ? ComponentType<JSX.IntrinsicElements[T] & VariantProps<V>>
+  : T extends ComponentType<infer P>
+    ? ComponentType<P & VariantProps<V>>
+    : never;
+```
+
+## Notes
+
+- **IDE Syntax Highlighting:** Wrap CSS strings in `css\`...\`` to get IDE syntax highlighting from the [vscode-styled-components](https://marketplace.visualstudio.com/items?itemName=styled-components.vscode-styled-components) extension
+- **Build-Time Extraction:** All CSS is extracted at build time. Only class name logic runs at runtime.
+- **Security:** Variant values are automatically sanitized to prevent CSS injection
+- **Class Pattern:** Generated classes follow BEM-like naming: `ss-{hash}` for base, `ss-{hash}--{variant}-{value}` for variants
+- **Zero Runtime CSS:** No runtime CSS generation. The component just maps props to pre-generated class names.
+
+## See Also
+
+- [cssVariants](/api/css-variants) - Get a variant function that returns class strings
+- [css](/api/css) - Get a scoped class name for CSS
+- [styled](/api/styled) - Create styled components without variants

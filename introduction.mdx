@@ -1,0 +1,193 @@
+---
+title: "Introduction"
+description: "Near-zero-runtime CSS-in-JS for React 19+ with Vite. Write styled-components syntax, get static CSS extracted at build time."
+---
+
+## What is styled-static?
+
+Styled-static is a near-zero-runtime CSS-in-JS library for React 19+ that extracts all CSS at build time. Write styled-components syntax you already know, but get the performance of static CSS.
+
+**What's "zero"?** CSS generation happens at build time (the expensive part). A minimal runtime (~45 bytes) handles className merging. Components are generated inline at build time.
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Get started with styled-static in your React 19+ project
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Build your first styled component in minutes
+  </Card>
+  <Card title="Core API" icon="code" href="/api/styled">
+    Explore the styled-components API you already know
+  </Card>
+  <Card title="How It Works" icon="lightbulb" href="/concepts/how-it-works">
+    Understand the build-time transformation
+  </Card>
+</CardGroup>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Static CSS" icon="bolt">
+    All CSS extracted at build time, no runtime stylesheet generation
+  </Card>
+  <Card title="Type-Safe" icon="shield-check">
+    Full TypeScript support with proper prop inference
+  </Card>
+  <Card title="Familiar API" icon="heart">
+    styled-components syntax you already know
+  </Card>
+  <Card title="Tiny Runtime" icon="feather">
+    Minimal ~45 byte runtime for className merging only
+  </Card>
+  <Card title="Zero Dependencies" icon="package">
+    Uses native CSS features and Vite's built-in tools
+  </Card>
+  <Card title="Inline Components" icon="code">
+    Components generated at build time, no runtime factories
+  </Card>
+</CardGroup>
+
+## Quick Example
+
+Here's a taste of what styled-static looks like:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: #2563eb;
+  }
+`;
+
+// Extend with additional styles
+const PrimaryButton = styled(Button)`
+  font-weight: bold;
+`;
+
+// Usage
+<Button onClick={handleClick}>Click me</Button>
+```
+
+<Note>
+  **React 19+ Required** — styled-static uses automatic ref forwarding, eliminating the need for `forwardRef`.
+</Note>
+
+## Why styled-static?
+
+<AccordionGroup>
+  <Accordion icon="globe" title="CSS evolved">
+    Native nesting, CSS variables, container queries—the gap between CSS and CSS-in-JS is smaller than ever. Modern browsers support everything we need.
+  </Accordion>
+  
+  <Accordion icon="heart-crack" title="CSS-in-JS fatigue">
+    Most CSS-in-JS libraries are obsolete, complex, or have large runtime overhead. We need something simpler and faster.
+  </Accordion>
+  
+  <Accordion icon="sparkles" title="Syntactic sugar over CSS modules">
+    Better DX for writing CSS without runtime interpolation. Get the benefits of scoped CSS with a familiar API.
+  </Accordion>
+  
+  <Accordion icon="shield" title="Zero dependencies">
+    Minimal attack surface. Nothing to audit. Uses only native CSS features and Vite's built-in tools.
+  </Accordion>
+  
+  <Accordion icon="bullseye" title="Intentionally simple">
+    95% native browser features + 5% build-time magic. No complex runtime, no CSS parsing overhead.
+  </Accordion>
+</AccordionGroup>
+
+## What We Don't Do
+
+Styled-static makes intentional trade-offs to stay simple and fast:
+
+<Warning>
+  **No runtime interpolation** — Can't write `${props => props.color}`. Use variants, CSS variables, or data attributes instead.
+</Warning>
+
+<Info>
+  **React 19+ only** — Uses automatic ref forwarding (no `forwardRef` needed).
+</Info>
+
+<Info>
+  **Vite only** — Uses Vite's AST parser and virtual modules. No Webpack/Rollup support.
+</Info>
+
+Each constraint removes complexity—no CSS parsing, no forwardRef wrapper, one great integration.
+
+## Core APIs at a Glance
+
+Styled-static provides 10 core functions:
+
+```tsx
+// Style elements
+const Button = styled.button`padding: 0.5rem 1rem;`;
+
+// Extend components
+const Primary = styled(Button)`font-weight: bold;`;
+
+// Get class string
+const active = css`outline: 2px solid blue;`;
+
+// Global styles
+const GlobalStyle = createGlobalStyle`* { box-sizing: border-box; }`;
+
+// Scoped keyframes
+const spin = keyframes`from { transform: rotate(0deg); }`;
+
+// Type-safe component variants
+const Btn = styledVariants({
+  component: 'button',
+  css: css`padding: 0.5rem;`,
+  variants: { size: { sm: css`font-size: 0.875rem;` } }
+});
+
+// Type-safe class variants
+const badge = cssVariants({
+  css: css`padding: 0.25rem;`,
+  variants: { color: { blue: css`background: #e0f2fe;` } }
+});
+
+// Combine classes conditionally
+<div className={cx('base', isActive && activeClass)} />
+
+// Default attributes
+const Input = styled.input.attrs({ type: 'password' })`padding: 0.5rem;`;
+
+// Polymorphism
+const LinkButton = withComponent(Link, Button);
+```
+
+## Performance
+
+Styled-static is designed for maximum performance:
+
+| Module           | Minified | Brotli |
+| ---------------- | -------- | ------ |
+| runtime/index.js | **45 B** | 50 B   |
+
+This is a **98% reduction** from traditional CSS-in-JS libraries like Emotion (~11 KB).
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Install styled-static" icon="download" href="/installation">
+    Add styled-static to your project with npm, yarn, or bun
+  </Card>
+  <Card title="Follow the quickstart" icon="rocket" href="/quickstart">
+    Build your first styled component in 5 minutes
+  </Card>
+  <Card title="Read the API docs" icon="book" href="/api/styled">
+    Explore all available APIs and features
+  </Card>
+  <Card title="See comparisons" icon="chart-bar" href="/comparison">
+    Compare styled-static with other CSS-in-JS libraries
+  </Card>
+</CardGroup>

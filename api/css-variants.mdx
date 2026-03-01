@@ -1,0 +1,361 @@
+---
+title: cssVariants
+description: Create a variant function that returns CSS class strings based on variant selections
+---
+
+Create a variant function that returns class strings. CSS for base and all variants is extracted at build time. The function maps variant selections to class names at runtime.
+
+Useful for applying variant styles to non-component elements or for composition with other utilities like `cx`.
+
+## Signature
+
+```typescript
+function cssVariants<V extends VariantsConfig>(
+  config: VariantsDefinition<V>
+): CssVariantsFunction<V>
+```
+
+## Parameters
+
+<ParamField path="config" type="VariantsDefinition<V>" required>
+  Configuration object for the variant function
+
+  <Expandable title="properties">
+    <ParamField path="css" type="string">
+      Base CSS that always applies. Use `css\`...\`` for IDE syntax highlighting.
+
+      ```tsx
+      css: css`
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+      `
+      ```
+    </ParamField>
+
+    <ParamField path="variants" type="VariantsConfig" required>
+      Variant definitions. Each variant is a key-value map where keys are variant names and values are objects mapping variant values to CSS strings.
+
+      ```tsx
+      variants: {
+        color: {
+          primary: css`background: blue;`,
+          danger: css`background: red;`,
+        },
+      }
+      ```
+
+      **Type:**
+      ```typescript
+      type VariantsConfig = Record<string, Record<string, string>>
+      ```
+    </ParamField>
+
+    <ParamField path="defaultVariants" type="Partial<{ [K in keyof V]: keyof V[K] }>">
+      Default values for variants, applied when the variant argument is undefined or the specific variant key is omitted.
+
+      ```tsx
+      defaultVariants: {
+        color: 'blue',
+      }
+      ```
+    </ParamField>
+
+    <ParamField path="compoundVariants" type="Array<CompoundVariantDefinition<V>>">
+      Compound variants - styles applied when multiple variant conditions match. Each definition is an object with variant conditions plus a `css` property.
+
+      ```tsx
+      compoundVariants: [
+        {
+          color: 'blue',
+          size: 'lg',
+          css: css`box-shadow: 0 4px 12px rgba(0, 100, 255, 0.3);`,
+        },
+      ]
+      ```
+
+      **Type:**
+      ```typescript
+      type CompoundVariantDefinition<V extends VariantsConfig> = 
+        Partial<{ [K in keyof V]: keyof V[K] }> & { css: string }
+      ```
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+## Returns
+
+<ParamField path="CssVariantsFunction" type="(variants?: Partial<VariantProps<V>>) => string">
+  A function that accepts variant selections and returns a space-separated class string.
+
+  **Function Signature:**
+  ```typescript
+  type CssVariantsFunction<V extends VariantsConfig> = (
+    variants?: Partial<VariantProps<V>>
+  ) => string
+  ```
+
+  **Returned String Format:**
+  - Base class: `ss-{hash}`
+  - Variant classes: `ss-{hash}--{variantName}-{value}`
+  - Example: `"ss-xyz ss-xyz--color-primary ss-xyz--size-lg"`
+
+  **Features:**
+  - Type-safe variant selection with autocomplete
+  - Automatic sanitization (prevents CSS injection)
+  - Returns space-separated class string ready for className attribute
+  - Zero runtime overhead (just string concatenation)
+</ParamField>
+
+## Examples
+
+### Basic Usage
+
+```tsx
+import { cssVariants, css } from '@alex.radulescu/styled-static';
+
+const buttonCss = cssVariants({
+  css: css`
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+  `,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+      danger: css`background: red;`,
+    },
+  },
+});
+
+// Usage - returns class string
+<div className={buttonCss({ color: 'primary' })}>
+  Button styled div
+</div>
+// Returns: "ss-xyz ss-xyz--color-primary"
+```
+
+### With Multiple Variants
+
+```tsx
+const badgeCss = cssVariants({
+  css: css`
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+  `,
+  variants: {
+    variant: {
+      info: css`background: #e0f2fe; color: #0369a1;`,
+      success: css`background: #dcfce7; color: #166534;`,
+      warning: css`background: #fef3c7; color: #92400e;`,
+    },
+    size: {
+      sm: css`padding: 0.125rem 0.25rem; font-size: 0.625rem;`,
+      lg: css`padding: 0.5rem 1rem; font-size: 0.875rem;`,
+    },
+  },
+});
+
+<span className={badgeCss({ variant: 'info', size: 'lg' })}>
+  Large Info Badge
+</span>
+```
+
+### With Default Variants
+
+```tsx
+const alertCss = cssVariants({
+  css: css`
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid;
+  `,
+  variants: {
+    severity: {
+      info: css`background: #eff6ff; border-color: #3b82f6;`,
+      warning: css`background: #fffbeb; border-color: #f59e0b;`,
+      error: css`background: #fef2f2; border-color: #ef4444;`,
+    },
+  },
+  defaultVariants: {
+    severity: 'info',
+  },
+});
+
+<div className={alertCss()}>
+  Defaults to info severity
+</div>
+
+<div className={alertCss({ severity: 'error' })}>
+  Error severity
+</div>
+```
+
+### With Compound Variants
+
+```tsx
+const cardCss = cssVariants({
+  css: css`
+    padding: 1rem;
+    border-radius: 8px;
+  `,
+  variants: {
+    elevated: {
+      true: css`box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);`,
+      false: css`border: 1px solid #e5e7eb;`,
+    },
+    interactive: {
+      true: css`cursor: pointer;`,
+      false: css``,
+    },
+  },
+  compoundVariants: [
+    {
+      elevated: 'true',
+      interactive: 'true',
+      css: css`
+        transition: box-shadow 0.2s;
+        &:hover {
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+        }
+      `,
+    },
+  ],
+});
+
+<div className={cardCss({ elevated: 'true', interactive: 'true' })}>
+  Interactive elevated card with hover effect
+</div>
+```
+
+### Combining with cx Utility
+
+```tsx
+import { cssVariants, css, cx } from '@alex.radulescu/styled-static';
+
+const buttonCss = cssVariants({
+  css: css`padding: 0.5rem 1rem;`,
+  variants: {
+    color: {
+      primary: css`background: blue;`,
+      danger: css`background: red;`,
+    },
+  },
+});
+
+const activeClass = css`
+  outline: 2px solid blue;
+  outline-offset: 2px;
+`;
+
+<button className={cx(
+  buttonCss({ color: 'primary' }),
+  isActive && activeClass,
+  'mt-4'
+)}>
+  Button with conditional classes
+</button>
+```
+
+### Boolean Variants
+
+```tsx
+const inputCss = cssVariants({
+  css: css`
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+  `,
+  variants: {
+    error: {
+      true: css`border-color: #ef4444; background: #fef2f2;`,
+      false: css``,
+    },
+    disabled: {
+      true: css`opacity: 0.5; cursor: not-allowed;`,
+      false: css``,
+    },
+  },
+});
+
+<input
+  className={inputCss({ error: hasError ? 'true' : 'false' })}
+  disabled={isDisabled}
+/>
+```
+
+## Type Definitions
+
+```typescript
+/** Full variants configuration: variantName -> { valueName -> css } */
+type VariantsConfig = Record<string, VariantOptions>;
+
+/** Mapping of variant value names to CSS strings */
+type VariantOptions = Record<string, string>;
+
+/**
+ * Base configuration for variants (used by cssVariants).
+ */
+interface VariantsDefinition<V extends VariantsConfig = VariantsConfig> {
+  /** Base CSS that always applies */
+  css?: string;
+  /** Variant definitions */
+  variants: V;
+  /** Default values for variants (applied when prop is undefined) */
+  defaultVariants?: Partial<{ [K in keyof V]: keyof V[K] }>;
+  /** Compound variants - styles applied when multiple conditions match */
+  compoundVariants?: Array<CompoundVariantDefinition<V>>;
+}
+
+/**
+ * A single compound variant definition.
+ * Combines multiple variant conditions with CSS to apply when all match.
+ */
+type CompoundVariantDefinition<V extends VariantsConfig> = 
+  Partial<{ [K in keyof V]: keyof V[K] }> & { css: string };
+
+/**
+ * Props derived from a variants config.
+ * Each variant name becomes an optional prop with its value names as the type.
+ */
+type VariantProps<V extends VariantsConfig> = {
+  [K in keyof V]?: keyof V[K];
+};
+
+/**
+ * Function returned by cssVariants.
+ */
+type CssVariantsFunction<V extends VariantsConfig> = (
+  variants?: Partial<VariantProps<V>>
+) => string;
+```
+
+## Notes
+
+- **IDE Syntax Highlighting:** Wrap CSS strings in `css\`...\`` to get IDE syntax highlighting from the [vscode-styled-components](https://marketplace.visualstudio.com/items?itemName=styled-components.vscode-styled-components) extension
+- **Build-Time Extraction:** All CSS is extracted at build time. Only class name mapping runs at runtime.
+- **Zero Runtime CSS:** No runtime CSS generation. The function just concatenates pre-generated class names.
+- **Type Safety:** Full TypeScript support with autocomplete for variant names and values
+- **Security:** Variant values are automatically sanitized to prevent CSS injection
+- **Class Pattern:** Generated classes follow BEM-like naming: `ss-{hash}` for base, `ss-{hash}--{variant}-{value}` for variants
+
+## Use Cases
+
+### When to use `cssVariants`
+
+- Applying variant styles to non-React elements (e.g., `<div>`, `<span>`)
+- Combining with other class utilities like Tailwind CSS
+- Building design system primitives that return class names
+- Need more control over className composition
+
+### When to use `styledVariants` instead
+
+- Creating reusable React components with variant props
+- Need automatic prop forwarding and ref support
+- Want component-level abstractions
+- Prefer JSX syntax over className strings
+
+## See Also
+
+- [styledVariants](/api/styled-variants) - Create styled components with variant props
+- [css](/api/css) - Get a scoped class name for CSS
+- [cx](/api/cx) - Utility for conditionally joining class names

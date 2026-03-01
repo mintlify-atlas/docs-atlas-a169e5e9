@@ -1,0 +1,235 @@
+---
+title: Styling Components
+description: Learn how to create styled components using the styled.element syntax
+---
+
+## Overview
+
+The `styled` function is the core API for creating styled components in styled-static. It provides a familiar template literal syntax that extracts CSS to static files at build time.
+
+## Basic Usage
+
+Style HTML elements directly using `styled.element` syntax:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+
+  &:hover {
+    background: #2563eb;
+  }
+`;
+
+// Usage
+<Button onClick={handleClick}>Click me</Button>
+```
+
+<Note>
+All CSS is extracted at build time. The component becomes a lightweight runtime wrapper that merges class names.
+</Note>
+
+## Styling Different Elements
+
+Every HTML element is available through the `styled` object:
+
+```tsx
+const Heading = styled.h1`
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin: 0 0 1rem;
+  letter-spacing: -0.02em;
+`;
+
+const Paragraph = styled.p`
+  margin: 0 0 1rem;
+  color: var(--color-text);
+  line-height: 1.6;
+`;
+
+const Input = styled.input`
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+`;
+```
+
+## CSS Nesting
+
+styled-static uses native CSS nesting for pseudo-classes, pseudo-elements, and child selectors:
+
+```tsx
+const Card = styled.div`
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+
+  /* Pseudo-classes */
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Child selectors */
+  & h2 {
+    margin: 0 0 0.5rem;
+  }
+
+  /* Pseudo-elements */
+  &::before {
+    content: '';
+    position: absolute;
+  }
+
+  /* Media queries */
+  @media (max-width: 640px) {
+    padding: 0.5rem;
+  }
+`;
+```
+
+<Warning>
+Native CSS nesting is supported in all modern browsers (Chrome 112+, Safari 16.5+, Firefox 117+). No build-time transformation needed.
+</Warning>
+
+## Type Safety
+
+Styled components automatically infer props from the underlying HTML element:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: blue;
+`;
+
+// ✅ Type-safe: button props are available
+<Button type="submit" disabled>Submit</Button>
+
+const Link = styled.a`
+  color: blue;
+  text-decoration: none;
+`;
+
+// ✅ Type-safe: anchor props are available
+<Link href="/path" target="_blank">External</Link>
+```
+
+## Adding Custom Classes
+
+You can pass additional classes via the `className` prop. User classes override styled classes:
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: blue;
+`;
+
+// Merge with custom classes
+<Button className="mt-4 hover:opacity-80">Click me</Button>
+// Renders: class="ss-abc123 mt-4 hover:opacity-80"
+```
+
+<Note>
+The cascade order is: Base styles → Extension styles → User className. This ensures user classes always have the final say.
+</Note>
+
+## Complete Example
+
+Here's a real-world example from the styled-static documentation site:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+const StyledButton = styled.button`
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-primary-hover);
+  }
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const Counter = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+`;
+
+function App() {
+  const [count, setCount] = useState(0);
+
+  return (
+    <Counter>
+      <StyledButton onClick={() => setCount(count - 1)}>-</StyledButton>
+      <span>{count}</span>
+      <StyledButton onClick={() => setCount(count + 1)}>+</StyledButton>
+    </Counter>
+  );
+}
+```
+
+## Build Output
+
+At build time, styled components are transformed into lightweight wrappers:
+
+```tsx
+// What you write:
+const Button = styled.button`
+  padding: 1rem;
+  background: blue;
+`;
+
+// What gets generated:
+import { createElement } from 'react';
+import { m } from '@alex.radulescu/styled-static/runtime';
+import '@alex.radulescu/styled-static:abc123-0.css';
+
+const Button = Object.assign(
+  (p) => createElement('button', {...p, className: m('ss-abc123', p.className)}),
+  { className: 'ss-abc123' }
+);
+```
+
+The CSS is extracted to a virtual module:
+
+```css
+/* Virtual module: styled-static:abc123-0.css */
+.ss-abc123 {
+  padding: 1rem;
+  background: blue;
+}
+```
+
+<Note>
+The runtime `m` function is just 45 bytes and only handles className merging. Everything else happens at build time.
+</Note>

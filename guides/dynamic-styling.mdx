@@ -1,0 +1,403 @@
+---
+title: Dynamic Styling
+description: Patterns for dynamic styling without runtime interpolation
+---
+
+## Overview
+
+styled-static doesn't support runtime interpolation (`${props => props.color}`). This is intentional—it keeps the library small, fast, and secure.
+
+Instead, use these patterns for dynamic styling:
+
+<Tabs>
+  <Tab title="Variants API">
+    Type-safe component variants (recommended)
+  </Tab>
+  <Tab title="cx utility">
+    Conditional class toggling
+  </Tab>
+  <Tab title="CSS variables">
+    Pass via `style` prop for truly dynamic values
+  </Tab>
+  <Tab title="Data attributes">
+    Style with `&[data-variant="x"]` selectors
+  </Tab>
+</Tabs>
+
+## Pattern 1: Variants API
+
+For predefined variations, use `styledVariants`:
+
+```tsx
+import { css, styledVariants } from '@alex.radulescu/styled-static';
+
+const Button = styledVariants({
+  component: 'button',
+  css: css`
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+  `,
+  variants: {
+    color: {
+      primary: css`background: blue; color: white;`,
+      danger: css`background: red; color: white;`,
+      success: css`background: green; color: white;`,
+    },
+    size: {
+      sm: css`font-size: 0.875rem;`,
+      md: css`font-size: 1rem;`,
+      lg: css`font-size: 1.125rem;`,
+    },
+  },
+});
+
+// Type-safe variant props
+<Button color="primary" size="lg">Click me</Button>
+```
+
+<Note>
+Variants are the recommended pattern. They're type-safe, performant, and work great for most use cases.
+</Note>
+
+## Pattern 2: Conditional Classes with cx
+
+For toggling between states, use the `cx` utility with `css`:
+
+```tsx
+import { styled, css, cx } from '@alex.radulescu/styled-static';
+
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: gray;
+`;
+
+const activeClass = css`
+  background: blue;
+  color: white;
+`;
+
+const highlightClass = css`
+  box-shadow: 0 0 10px yellow;
+`;
+
+// Conditional classes
+<Button className={cx(isActive && activeClass, isHighlighted && highlightClass)}>
+  Dynamic Button
+</Button>
+```
+
+### Real-World Example
+
+```tsx
+import { styled, css, cx } from '@alex.radulescu/styled-static';
+
+const NavItem = styled.a`
+  display: block;
+  padding: 0.5rem 1rem;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: var(--color-border);
+  }
+`;
+
+const activeClass = css`
+  background: var(--color-nav-active);
+  color: var(--color-primary);
+  font-weight: 500;
+`;
+
+function Navigation({ activeId }: { activeId: string }) {
+  const items = [
+    { id: 'home', label: 'Home' },
+    { id: 'about', label: 'About' },
+    { id: 'contact', label: 'Contact' },
+  ];
+
+  return (
+    <nav>
+      {items.map(item => (
+        <NavItem
+          key={item.id}
+          href={`#${item.id}`}
+          className={cx(activeId === item.id && activeClass)}
+        >
+          {item.label}
+        </NavItem>
+      ))}
+    </nav>
+  );
+}
+```
+
+## Pattern 3: CSS Variables via style Prop
+
+For truly dynamic values (e.g., user input, API data), pass CSS variables via the `style` prop:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+const ProgressBar = styled.div`
+  width: 100%;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+`;
+
+const ProgressFill = styled.div`
+  height: 100%;
+  background: var(--progress-color);
+  width: var(--progress-width);
+  transition: width 0.3s ease;
+`;
+
+function Progress({ percent, color }: { percent: number; color: string }) {
+  return (
+    <ProgressBar>
+      <ProgressFill
+        style={{
+          '--progress-width': `${percent}%`,
+          '--progress-color': color,
+        } as React.CSSProperties}
+      />
+    </ProgressBar>
+  );
+}
+
+// Usage
+<Progress percent={75} color="#10b981" />
+```
+
+### Color Picker Example
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+import { useState } from 'react';
+
+const ColorPreview = styled.div`
+  width: 100px;
+  height: 100px;
+  background: var(--selected-color);
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+`;
+
+function ColorPicker() {
+  const [color, setColor] = useState('#3b82f6');
+
+  return (
+    <div>
+      <input
+        type="color"
+        value={color}
+        onChange={e => setColor(e.target.value)}
+      />
+      <ColorPreview
+        style={{ '--selected-color': color } as React.CSSProperties}
+      />
+    </div>
+  );
+}
+```
+
+<Warning>
+When using CSS variables in TypeScript, cast to `React.CSSProperties` to avoid type errors.
+</Warning>
+
+## Pattern 4: Data Attributes
+
+Use data attributes to create semantic variants:
+
+```tsx
+import { styled } from '@alex.radulescu/styled-static';
+
+const Alert = styled.div`
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+
+  &[data-variant="info"] {
+    background: #eff6ff;
+    border-color: #3b82f6;
+    color: #1e40af;
+  }
+
+  &[data-variant="success"] {
+    background: #f0fdf4;
+    border-color: #10b981;
+    color: #065f46;
+  }
+
+  &[data-variant="warning"] {
+    background: #fffbeb;
+    border-color: #f59e0b;
+    color: #92400e;
+  }
+
+  &[data-variant="error"] {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #991b1b;
+  }
+`;
+
+// Usage
+<Alert data-variant="info">Information message</Alert>
+<Alert data-variant="error">Error message</Alert>
+```
+
+### With State
+
+```tsx
+const Button = styled.button`
+  padding: 0.5rem 1rem;
+  background: #e2e8f0;
+  border: none;
+  border-radius: 4px;
+
+  &[data-loading="true"] {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  &[data-disabled="true"] {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
+function AsyncButton({ loading }: { loading: boolean }) {
+  return (
+    <Button data-loading={loading}>
+      {loading ? 'Loading...' : 'Click me'}
+    </Button>
+  );
+}
+```
+
+## Comparison of Patterns
+
+<table>
+  <thead>
+    <tr>
+      <th>Pattern</th>
+      <th>Use Case</th>
+      <th>Type Safety</th>
+      <th>Performance</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>**Variants API**</td>
+      <td>Predefined variations</td>
+      <td>✅ Full</td>
+      <td>⚡ Fastest</td>
+    </tr>
+    <tr>
+      <td>**cx + css**</td>
+      <td>Conditional toggling</td>
+      <td>✅ Full</td>
+      <td>⚡ Fast</td>
+    </tr>
+    <tr>
+      <td>**CSS Variables**</td>
+      <td>Dynamic values</td>
+      <td>⚠️ Partial</td>
+      <td>⚡ Fast</td>
+    </tr>
+    <tr>
+      <td>**Data Attributes**</td>
+      <td>Semantic states</td>
+      <td>❌ None</td>
+      <td>⚡ Fast</td>
+    </tr>
+  </tbody>
+</table>
+
+## Combining Patterns
+
+You can mix and match patterns:
+
+```tsx
+import { styled, css, cx, styledVariants } from '@alex.radulescu/styled-static';
+
+// Base component with variants
+const Card = styledVariants({
+  component: 'div',
+  css: css`
+    padding: 1rem;
+    border-radius: 8px;
+    background: var(--card-bg);
+  `,
+  variants: {
+    elevated: {
+      true: css`box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);`,
+      false: css`border: 1px solid var(--color-border);`,
+    },
+  },
+});
+
+const highlightClass = css`
+  outline: 2px solid var(--color-primary);
+`;
+
+function DynamicCard({
+  elevated,
+  highlighted,
+  bgColor,
+}: {
+  elevated: boolean;
+  highlighted: boolean;
+  bgColor: string;
+}) {
+  return (
+    <Card
+      elevated={elevated}
+      className={cx(highlighted && highlightClass)}
+      style={{ '--card-bg': bgColor } as React.CSSProperties}
+    >
+      Card content
+    </Card>
+  );
+}
+```
+
+## Why No Runtime Interpolation?
+
+Runtime interpolation (`${props => props.color}`) would require:
+
+- Runtime CSS generation
+- Stylesheet insertion
+- Larger bundle size
+- Security risks (CSS injection)
+
+By avoiding it, styled-static achieves:
+
+<Steps>
+
+<Step title="~45 byte runtime">
+Minimal runtime overhead for className merging only.
+</Step>
+
+<Step title="Zero dependencies">
+No CSS parser, no style injection library needed.
+</Step>
+
+<Step title="Build-time safety">
+CSS injection is impossible when CSS is static.
+</Step>
+
+<Step title="Better performance">
+No runtime style computation or DOM manipulation.
+</Step>
+
+</Steps>
+
+<Note>
+For 99% of use cases, variants + CSS variables provide all the dynamic styling you need without runtime overhead.
+</Note>

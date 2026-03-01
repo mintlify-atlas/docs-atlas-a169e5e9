@@ -1,0 +1,482 @@
+---
+title: Animations
+description: Using keyframes for CSS animations with automatic scoping
+---
+
+## Overview
+
+The `keyframes` function creates scoped CSS animations. Animation names are automatically hashed to avoid conflicts between components.
+
+## Basic Usage
+
+```tsx
+import { keyframes, styled } from '@alex.radulescu/styled-static';
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Spinner = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 2px solid #3b82f6;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
+`;
+```
+
+<Note>
+Animation names are hashed at build time (e.g., `ss-abc123`) to prevent conflicts between different components.
+</Note>
+
+## Common Animations
+
+Here are some common animation patterns:
+
+### Spin
+
+```tsx
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Loader = styled.div`
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
+`;
+```
+
+### Pulse
+
+```tsx
+const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+`;
+
+const PulsingDot = styled.div`
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  animation: ${pulse} 2s ease-in-out infinite;
+`;
+```
+
+### Fade In
+
+```tsx
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+const FadeInBox = styled.div`
+  animation: ${fadeIn} 0.3s ease-out;
+`;
+```
+
+### Slide In
+
+```tsx
+const slideInRight = keyframes`
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
+
+const SlideInPanel = styled.div`
+  animation: ${slideInRight} 0.3s ease-out;
+`;
+```
+
+### Bounce
+
+```tsx
+const bounce = keyframes`
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-20px);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+`;
+
+const BouncingButton = styled.button`
+  animation: ${bounce} 1s ease infinite;
+`;
+```
+
+### Shake
+
+```tsx
+const shake = keyframes`
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+`;
+
+const ShakeOnError = styled.input`
+  &[data-error="true"] {
+    animation: ${shake} 0.5s ease;
+  }
+`;
+```
+
+## Multiple Keyframes
+
+You can use multiple keyframes in a single component:
+
+```tsx
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const pulse = keyframes`
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+`;
+
+const LoadingIndicator = styled.div`
+  width: 32px;
+  height: 32px;
+  border: 3px solid #3b82f6;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation:
+    ${spin} 1s linear infinite,
+    ${pulse} 2s ease-in-out infinite;
+`;
+```
+
+## Conditional Animations
+
+Combine animations with data attributes or classes:
+
+```tsx
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+const shake = keyframes`
+  0%, 100% { transform: translateX(0); }
+  25%, 75% { transform: translateX(-10px); }
+  50% { transform: translateX(10px); }
+`;
+
+const Input = styled.input`
+  /* No animation by default */
+  
+  &[data-state="entering"] {
+    animation: ${fadeIn} 0.3s ease-out;
+  }
+
+  &[data-state="error"] {
+    animation: ${shake} 0.5s ease;
+  }
+`;
+
+// Usage
+<Input data-state={hasError ? 'error' : 'entering'} />
+```
+
+## Real-World Examples
+
+### Loading Spinner
+
+```tsx
+import { keyframes, styled } from '@alex.radulescu/styled-static';
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const SpinnerContainer = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const SpinnerIcon = styled.div`
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e2e8f0;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: ${spin} 0.8s linear infinite;
+`;
+
+function LoadingButton({ loading, children }) {
+  return (
+    <button disabled={loading}>
+      {loading && (
+        <SpinnerContainer>
+          <SpinnerIcon />
+          <span>Loading...</span>
+        </SpinnerContainer>
+      )}
+      {!loading && children}
+    </button>
+  );
+}
+```
+
+### Skeleton Loader
+
+```tsx
+const shimmer = keyframes`
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: 200px 0;
+  }
+`;
+
+const Skeleton = styled.div`
+  background: linear-gradient(
+    90deg,
+    #f0f0f0 0px,
+    #f8f8f8 40px,
+    #f0f0f0 80px
+  );
+  background-size: 200px 100%;
+  animation: ${shimmer} 1.5s infinite;
+  border-radius: 4px;
+`;
+
+const SkeletonText = styled(Skeleton)`
+  height: 1rem;
+  margin-bottom: 0.5rem;
+`;
+
+const SkeletonAvatar = styled(Skeleton)`
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+`;
+
+function LoadingCard() {
+  return (
+    <div>
+      <SkeletonAvatar />
+      <SkeletonText />
+      <SkeletonText style={{ width: '80%' }} />
+    </div>
+  );
+}
+```
+
+### Toast Notification
+
+```tsx
+const slideInRight = keyframes`
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
+
+const slideOutRight = keyframes`
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+`;
+
+const Toast = styled.div`
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  padding: 1rem 1.5rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: ${slideInRight} 0.3s ease-out;
+
+  &[data-exiting="true"] {
+    animation: ${slideOutRight} 0.3s ease-out;
+  }
+`;
+```
+
+### Hover Animations
+
+```tsx
+const float = keyframes`
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+`;
+
+const glow = keyframes`
+  0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); }
+`;
+
+const FloatingCard = styled.div`
+  padding: 2rem;
+  background: white;
+  border-radius: 12px;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    animation:
+      ${float} 2s ease-in-out infinite,
+      ${glow} 2s ease-in-out infinite;
+  }
+`;
+```
+
+## Animation Timing
+
+Control animation behavior with timing functions:
+
+```tsx
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+// Linear (constant speed)
+const Linear = styled.div`
+  animation: ${fadeIn} 1s linear;
+`;
+
+// Ease (slow start, fast middle, slow end)
+const Ease = styled.div`
+  animation: ${fadeIn} 1s ease;
+`;
+
+// Ease-in (slow start)
+const EaseIn = styled.div`
+  animation: ${fadeIn} 1s ease-in;
+`;
+
+// Ease-out (slow end)
+const EaseOut = styled.div`
+  animation: ${fadeIn} 1s ease-out;
+`;
+
+// Ease-in-out (slow start and end)
+const EaseInOut = styled.div`
+  animation: ${fadeIn} 1s ease-in-out;
+`;
+
+// Custom cubic-bezier
+const Custom = styled.div`
+  animation: ${fadeIn} 1s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+`;
+```
+
+## Build-Time Transformation
+
+At build time, keyframes are extracted and hashed:
+
+```tsx
+// What you write:
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Spinner = styled.div`
+  animation: ${spin} 1s linear infinite;
+`;
+
+// Generated CSS:
+@keyframes ss-abc123 {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ss-xyz789 {
+  animation: ss-abc123 1s linear infinite;
+}
+
+// Generated JavaScript:
+const spin = 'ss-abc123';
+const Spinner = /* component with class ss-xyz789 */;
+```
+
+<Note>
+The keyframes name is replaced with a hashed identifier at build time, preventing naming conflicts across components.
+</Note>
+
+## Performance Tips
+
+<Steps>
+
+<Step title="Use transform and opacity">
+Animations using `transform` and `opacity` are GPU-accelerated and perform best.
+</Step>
+
+<Step title="Avoid animating layout properties">
+Properties like `width`, `height`, `top`, `left` trigger layout recalculation. Use `transform` instead.
+</Step>
+
+<Step title="Use will-change sparingly">
+Add `will-change` to hint the browser, but only for actively animating elements.
+```tsx
+const Spinner = styled.div`
+  will-change: transform;
+  animation: ${spin} 1s linear infinite;
+`;
+```
+</Step>
+
+<Step title="Prefer reduced motion">
+Respect user preferences for reduced motion:
+```tsx
+const fadeIn = keyframes`
+  from { opacity: 0; }
+  to { opacity: 1; }
+`;
+
+const Animated = styled.div`
+  animation: ${fadeIn} 0.3s ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
+```
+</Step>
+
+</Steps>
+
+## Browser Support
+
+CSS animations are supported in all modern browsers:
+
+- Chrome 43+
+- Safari 9+
+- Firefox 16+
+- Edge 12+
+
+No polyfills or runtime JavaScript needed.
