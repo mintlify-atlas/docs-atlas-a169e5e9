@@ -1,0 +1,131 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "styled-static",
+  "projectDescription": "Near-zero-runtime CSS-in-JS for React 19+ with Vite that extracts CSS at build time",
+  "theme": "palm",
+  "primaryColor": "#3b82f6",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/how-it-works",
+              "concepts/static-extraction",
+              "concepts/zero-runtime"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/styling-components",
+              "guides/component-extension",
+              "guides/variants",
+              "guides/theming",
+              "guides/dynamic-styling",
+              "guides/global-styles",
+              "guides/animations"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/polymorphism",
+              "advanced/configuration",
+              "advanced/library-builds",
+              "advanced/typescript"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "troubleshooting",
+              "comparison",
+              "migration"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/styled",
+              "api/css",
+              "api/keyframes",
+              "api/create-global-style",
+              "api/cx"
+            ]
+          },
+          {
+            "group": "Variants",
+            "pages": [
+              "api/styled-variants",
+              "api/css-variants"
+            ]
+          },
+          {
+            "group": "Polymorphism",
+            "pages": [
+              "api/with-component"
+            ]
+          },
+          {
+            "group": "Theming",
+            "pages": [
+              "api/init-theme",
+              "api/set-theme",
+              "api/get-theme",
+              "api/on-system-theme-change"
+            ]
+          },
+          {
+            "group": "Vite Plugin",
+            "pages": [
+              "api/vite-plugin"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Static CSS extraction at build time",
+    "Near-zero runtime (~45 bytes)",
+    "Type-safe variants API",
+    "Built-in theme utilities",
+    "Zero dependencies",
+    "React 19+ with automatic ref forwarding",
+    "Vite-first integration",
+    "Familiar styled-components syntax"
+  ],
+  "publicApiSurface": [
+    "styled",
+    "css",
+    "keyframes",
+    "createGlobalStyle",
+    "cx",
+    "styledVariants",
+    "cssVariants",
+    "withComponent",
+    "initTheme",
+    "setTheme",
+    "getTheme",
+    "onSystemThemeChange",
+    "styledStatic (Vite plugin)"
+  ]
+}
